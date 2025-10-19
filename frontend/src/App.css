@@ -1,0 +1,110 @@
+.ui-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  width: 300px;
+  gap: 1rem;
+  background-color: #f9f9f9;
+  border-right: 1px solid #ddd;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  font-family: 'Open Sans', sans-serif;
+}
+
+.ui-panel label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.ui-panel input[type="number"],
+.ui-panel input[type="color"] {
+  margin-top: 4px;
+  padding: 4px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.ui-panel button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background-color: #1e88e5;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.ui-panel button:hover {
+  background-color: #1565c0;
+}
+/* ==== MOBILE 3D CANVAS FIX (drop-in) ==== */
+
+/* База: чтобы высота могла передаваться вниз */
+:root, html, body, #root { min-height: 100%; height: 100%; }
+html, body { margin: 0; padding: 0; }
+
+/* 1) На всякий случай снимаем скрытия на мобильных,
+   если где-то стоит display:none для верхнего блока со сценой */
+@media (max-width: 900px) {
+  [class*="scene"], [id*="scene"] { display: block !important; }
+}
+
+/* 2) ДАЁМ РЕАЛЬНУЮ ВЫСОТУ ЛЮБОМУ <canvas> (r3f) на мобилке.
+   Сначала современные единицы (svh/dvh), потом общий vh. */
+@media (max-width: 900px) {
+  canvas {
+    display: block !important;
+    width: 100% !important;
+
+    /* гарантируем ненулевую высоту */
+    min-height: 300px !important;
+
+    /* стабильная доля экрана */
+    height: 65svh !important;   /* новые мобильные */
+    height: 65dvh !important;   /* альтернатива */
+    height: 65vh  !important;   /* фолбэк */
+
+    max-height: 820px !important;
+
+    /* иногда помогает от странных коллапсов высоты */
+    contain: layout paint size;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    touch-action: none;
+  }
+}
+
+/* 3) Если у тебя контейнер над canvas (часто section с "scene"),
+   зададим и ему явную высоту — вдруг canvas наследует оттуда */
+@media (max-width: 900px) {
+  [class*="scene"], [id*="scene"] {
+    position: relative;
+    width: 100%;
+    min-height: 300px !important;
+    height: 65svh !important;
+    height: 65dvh !important;
+    height: 65vh  !important;
+    max-height: 820px !important;
+    overflow: hidden;
+  }
+
+  /* canvas на весь контейнер, если он внутри "scene" */
+  [class*="scene"] > canvas,
+  [id*="scene"] > canvas {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+/* 4) Для сверх-узких экранов можно чуть уменьшить высоту */
+@media (max-width: 420px) {
+  canvas,
+  [class*="scene"],
+  [id*="scene"] {
+    min-height: 260px !important;
+  }
+}

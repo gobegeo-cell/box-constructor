@@ -1,0 +1,36 @@
+/* ImportExportControls.css */
+
+/* Общий стиль для блока управления */
+.export-block {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* Стиль для кнопок */
+.styled-button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  font-size: 16px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.styled-button:hover {
+  background-color: #45a049;
+}
+
+/* Стиль для кнопки выбора файла */
+input[type="file"] {
+  display: none;
+}
+
+/* Дополнительный стиль для всплывающих сообщений */
+.styled-button:focus {
+  outline: none;
+}
