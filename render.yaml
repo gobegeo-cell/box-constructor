@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: box-constructor
+    env: node
+    plan: free
+    buildCommand: |
+      cd frontend
+      npm install
+      npm run build
+      cd ../backend
+      npm install
+    startCommand: node src/index.js
+    envVars:
+      - key: VITE_API_URL
+        value: https://box-constructor.onrender.com
+      - key: VITE_MANAGER_EMAIL
+        value: public@pchelkinspb.ru
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        value: public@pchelkinspb.ru
+      - key: SMTP_PASS
+        sync: false  # зададим вручную в Render
