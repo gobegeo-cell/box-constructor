@@ -4,6 +4,8 @@ import cors from "cors";
 import fileUpload from "express-fileupload";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import quotesRouter from "./api/quotes.js";
 import tzRouter from "./api/tz.js";
 
@@ -14,8 +16,7 @@ app.use(cors());
 app.use(express.json());
 app.use(fileUpload());
 
-// --- ACCESS: проверка промокода по .env ---
-// Пример: GET http://localhost:4000/api/access/check?code=BOX2025
+// ====== ACCESS (проверка промокода) ======
 app.get("/api/access/check", (req, res) => {
   try {
     const code = String(req.query.code || "").trim().toUpperCase();
@@ -23,7 +24,6 @@ app.get("/api/access/check", (req, res) => {
       .split(",")
       .map((s) => s.trim().toUpperCase())
       .filter(Boolean);
-
     const canSeePrices = !!code && validCodes.includes(code);
     res.json({ ok: true, canSeePrices });
   } catch (err) {
@@ -31,10 +31,9 @@ app.get("/api/access/check", (req, res) => {
     res.status(500).json({ ok: false, error: "internal_error" });
   }
 });
-
 console.log("[ACCESS] router mounted at /api/access");
 
-// ====== Почтовая отправка (soft режим, код не обязателен) ======
+// ====== Почтовая отправка ======
 app.post("/api/quotes/send", async (req, res) => {
   try {
     const f = req.files?.file;
@@ -47,7 +46,9 @@ app.post("/api/quotes/send", async (req, res) => {
     )
       .trim()
       .toUpperCase();
-    const accessInfo = access ? `Код доступа: ${access}` : "Код доступа: — (не указан)";
+    const accessInfo = access
+      ? `Код доступа: ${access}`
+      : "Код доступа: — (не указан)";
 
     const to = String(req.body?.to || process.env.MANAGER_EMAIL || "").trim();
     if (!to) return res.status(400).json({ ok: false, error: "No recipient" });
@@ -97,7 +98,10 @@ app.get("/api/mail/env", (req, res) => {
     SMTP_HOST: process.env.SMTP_HOST,
     SMTP_PORT: process.env.SMTP_PORT,
     SMTP_SECURE: process.env.SMTP_SECURE,
-    SMTP_USER: process.env.SMTP_USER?.slice(0, 2) + "***" + process.env.SMTP_USER?.slice(-2),
+    SMTP_USER:
+      process.env.SMTP_USER?.slice(0, 2) +
+      "***" +
+      process.env.SMTP_USER?.slice(-2),
     SMTP_FROM: process.env.SMTP_FROM,
     MANAGER_EMAIL: process.env.MANAGER_EMAIL,
     ACCESS_CODES: (process.env.ACCESS_CODES || "").split(",").length,
@@ -118,6 +122,15 @@ app.get("/api/mail/verify", async (req, res) => {
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
+});
+
+// ====== Раздача фронтенда ======
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
+app.get("*", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "../frontend/dist", "index.html"));
 });
 
 // ====== Старт сервера ======
