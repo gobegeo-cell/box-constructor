@@ -9,15 +9,11 @@ import SideColorPicker from "./SideColorPicker";
 import SideSelector from "./SideSelector";
 import LogoEditor from "./LogoEditor";
 import MobileLogoEditor from "./MobileLogoEditor";
-import LogoSticker from "./LogoSticker";
-import MobileLogoSticker from "./MobileLogoSticker";
 import PriceEstimator from "./PriceEstimator";
 import useIsMobile from "../hooks/useIsMobile";
 
 declare global {
-  interface Window {
-    __boxCanvas?: HTMLCanvasElement;
-  }
+  interface Window { __boxCanvas?: HTMLCanvasElement; }
 }
 
 const DEFAULT_W = 250;
@@ -41,83 +37,90 @@ export default function BoxWithControls() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Мобильный детектор через хук
   const isMobile = useIsMobile(900);
 
-  const layout: React.CSSProperties = useMemo(() => {
-    return isMobile
-      ? {
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gridTemplateRows: "auto auto",
-          gap: 12,
-          padding: 12,
-          boxSizing: "border-box",
-        }
-      : {
-          display: "grid",
-          gridTemplateColumns: "340px 1fr",
-          height: "100vh",
-          gap: 12,
-          padding: 12,
-          boxSizing: "border-box",
-        };
+  // DPR
+  const dpr = useMemo(() => {
+    if (typeof window === "undefined") return [1, 1] as const;
+    return [1, Math.min(2, window.devicePixelRatio || 1)] as const;
+  }, []);
+
+  // Макет
+  const layout: React.CSSProperties = useMemo(
+    () =>
+      isMobile
+        ? { display: "grid", gridTemplateColumns: "1fr", gridTemplateRows: "auto auto", gap: 12, padding: 12, boxSizing: "border-box" }
+        : { display: "grid", gridTemplateColumns: "340px 1fr", height: "100vh", gap: 12, padding: 12, boxSizing: "border-box" },
+    [isMobile]
+  );
+
+  const viewer: React.CSSProperties = useMemo(
+    () =>
+      isMobile
+        ? { background: "#f7f7f9", borderRadius: 12, overflow: "hidden", position: "relative", width: "100%", height: "100vw", minHeight: 300, maxHeight: 820 }
+        : { background: "#f7f7f9", borderRadius: 12, overflow: "hidden", position: "relative" },
+    [isMobile]
+  );
+
+  const sidebar: React.CSSProperties = useMemo(() => {
+    const base: React.CSSProperties = {
+      overflowY: "auto",
+      overflowX: "hidden",
+      paddingRight: 4,
+      paddingLeft: 4,
+      boxSizing: "border-box",
+      scrollBehavior: "smooth",
+      maxWidth: "100%",
+    };
+    if (isMobile) {
+      base.paddingRight = 2;
+      base.paddingLeft = 2;
+    }
+    return base;
   }, [isMobile]);
 
-  const viewer: React.CSSProperties = useMemo(() => {
-    return isMobile
-      ? {
-          background: "#f7f7f9",
-          borderRadius: 12,
-          overflow: "hidden",
-          position: "relative",
-          width: "100%",
-          height: "100vw",
-          minHeight: 300,
-          maxHeight: 820,
-        }
-      : {
-          background: "#f7f7f9",
-          borderRadius: 12,
-          overflow: "hidden",
-          position: "relative",
-        };
-  }, [isMobile]);
+  const card: React.CSSProperties = useMemo(
+    () => ({ border: "1px solid #eee", borderRadius: 8, padding: isMobile ? 8 : 12, marginBottom: isMobile ? 8 : 12, maxWidth: "100%", background: "#fff" }),
+    [isMobile]
+  );
 
-  const sidebar: React.CSSProperties = { overflow: "auto", paddingRight: 4 };
-  const card: React.CSSProperties = {
-    border: "1px solid #eee",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  };
-  const cardTitle: React.CSSProperties = {
-    fontWeight: 700,
-    marginBottom: 8,
-  };
+  const cardTitle: React.CSSProperties = useMemo(
+    () => ({ fontWeight: 600, fontSize: isMobile ? 13 : 15, marginBottom: 8, color: "#222" }),
+    [isMobile]
+  );
 
   return (
     <main style={layout}>
-      {/* Сцена — мобильная сверху */}
+      {/* Оверрайд: максимально компактные кнопки внутри SideSelector (в т.ч. «Крышка/Дно») */}
+      <style>{`
+        .mini-side-selector { display: block; }
+        .mini-side-selector button {
+          padding: 5px 8px;            /* компактные отступы */
+          height: 32px;                /* ниже, чем раньше */
+          font-size: 12px;             /* мельче шрифт */
+          line-height: 1;
+          border-radius: 6px;
+        }
+        .mini-side-selector button svg { width: 14px; height: 14px; }
+        .mini-side-selector :where(.row,.grid,.wrap) { gap: 6px; } /* поменьше зазоры */
+      `}</style>
+
+      {/* Сцена — сверху на мобильном */}
       {isMobile && (
         <div style={viewer}>
           <Canvas
             id="box-canvas"
             gl={{ preserveDrawingBuffer: true, powerPreference: "high-performance" }}
-            dpr={[
-              1,
-              Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1),
-            ]}
+            dpr={dpr}
             onCreated={(state) => {
-              window.__boxCanvas = state.gl.domElement as HTMLCanvasElement;
-              try {
-                const dpr = Math.min(
-                  2,
-                  typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
-                );
-                state.gl.setPixelRatio(dpr);
-                state.gl.getContext().canvas.style.imageRendering = "auto";
-              } catch {}
+              if (typeof window !== "undefined") {
+                window.__boxCanvas = state.gl.domElement as HTMLCanvasElement;
+                try {
+                  const px = Math.min(2, window.devicePixelRatio || 1);
+                  state.gl.setPixelRatio(px);
+                  state.gl.getContext().canvas.style.imageRendering = "auto";
+                } catch {}
+              }
             }}
             style={{ width: "100%", height: "100%", display: "block" }}
             shadows
@@ -135,58 +138,71 @@ export default function BoxWithControls() {
               maxDistance={2.0}
             />
             <BoxModel />
-            <MobileLogoSticker />
           </Canvas>
         </div>
       )}
 
-      {/* Панель */}
+      {/* Панель с контролами — порядок как ты просил */}
       <div style={sidebar}>
-        <h2 style={{ marginTop: 0 }}>Конструктор</h2>
-
-        {/* Размеры */}
+        {/* 1) Размеры */}
         <div style={card}>
-          <div style={cardTitle}>Размеры (мм)</div>
+          <div style={cardTitle}>Размеры, мм</div>
           <SizesRow
-            wStore={Number(width) || DEFAULT_W}
-            hStore={Number(height) || DEFAULT_H}
-            dStore={Number(depth) || DEFAULT_D}
+            wStore={width || DEFAULT_W}
+            hStore={height || DEFAULT_H}
+            dStore={depth || DEFAULT_D}
             onW={setWidth}
             onH={setHeight}
             onD={setDepth}
           />
         </div>
 
-        <TypeSelector />
-        <SideColorPicker />
-        <SideSelector />
+        {/* 2) Тип коробки */}
+        <div style={card}>
+          <div style={cardTitle}>Тип коробки</div>
+          <TypeSelector />
+        </div>
 
-        {/* редактор — мобильный или десктопный */}
-        {isMobile ? <MobileLogoEditor /> : <LogoEditor />}
+        {/* 3) Цвета: сначала пипетка/палитра, затем кнопки сторон (крышка/дно и т.д.) */}
+        <div style={card}>
+          <div style={cardTitle}>Цвета</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            <SideColorPicker />
+            <div className="mini-side-selector">
+              <SideSelector />
+            </div>
+          </div>
+        </div>
 
-        <PriceEstimator />
+        {/* 4) Логотип */}
+        <div style={card}>
+          <div style={cardTitle}>Логотип</div>
+          {isMobile ? <MobileLogoEditor /> : <LogoEditor />}
+        </div>
+
+        {/* 5) Оценка цены */}
+        <div style={card}>
+          <div style={cardTitle}>Оценка цены</div>
+          <PriceEstimator />
+        </div>
       </div>
 
-      {/* Сцена — десктоп справа */}
+      {/* Сцена — справа на десктопе */}
       {!isMobile && (
         <div style={viewer}>
           <Canvas
             id="box-canvas"
             gl={{ preserveDrawingBuffer: true, powerPreference: "high-performance" }}
-            dpr={[
-              1,
-              Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1),
-            ]}
+            dpr={dpr}
             onCreated={(state) => {
-              window.__boxCanvas = state.gl.domElement as HTMLCanvasElement;
-              try {
-                const dpr = Math.min(
-                  2,
-                  typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
-                );
-                state.gl.setPixelRatio(dpr);
-                state.gl.getContext().canvas.style.imageRendering = "auto";
-              } catch {}
+              if (typeof window !== "undefined") {
+                window.__boxCanvas = state.gl.domElement as HTMLCanvasElement;
+                try {
+                  const px = Math.min(2, window.devicePixelRatio || 1);
+                  state.gl.setPixelRatio(px);
+                  state.gl.getContext().canvas.style.imageRendering = "auto";
+                } catch {}
+              }
             }}
             style={{ width: "100%", height: "100%", display: "block" }}
             shadows
@@ -204,7 +220,6 @@ export default function BoxWithControls() {
               maxDistance={2.0}
             />
             <BoxModel />
-            <LogoSticker />
           </Canvas>
         </div>
       )}
