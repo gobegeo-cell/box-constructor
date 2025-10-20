@@ -5,14 +5,14 @@ import { useBoxStore } from "../store/useBoxStore";
 /* ==== UI tokens ==== */
 const card = { border: "1px solid #eee", borderRadius: 12, padding: 12, marginTop: 10, background: "#fff" } as const;
 
-/** Шапка: слева «Цвет» + «Крышка/Дно», сразу после них пипетка (в той же строке) */
+/** Шапка: «Цвет» + «Крышка/Дно», сразу после — пипетка (как просил) */
 const header = {
   display: "flex",
   alignItems: "center",
   justifyContent: "flex-start",
   gap: 10,
   marginBottom: 10,
-  flexWrap: "wrap",   // на узком экране элементы перенесутся, но остаются в шапке
+  flexWrap: "wrap",
 } as const;
 
 const segments = {
@@ -22,6 +22,7 @@ const segments = {
   overflow: "hidden",
   flexShrink: 0,
 } as const;
+
 const segBtn = (active: boolean) =>
   ({
     padding: "8px 14px",
@@ -34,7 +35,7 @@ const segBtn = (active: boolean) =>
     flexShrink: 0,
   }) as const;
 
-/* ОДНА пипетка — сразу после «Крышка/Дно», не вылезает */
+/* ОДНА пипетка — сразу после «Крышка/Дно» */
 const colorBtn = {
   width: 34,
   height: 28,
@@ -42,27 +43,50 @@ const colorBtn = {
   borderRadius: 8,
   background: "#fff",
   cursor: "pointer",
-  flexShrink: 0,        // не сжимать, лучше перенести строку
+  flexShrink: 0,
   boxSizing: "border-box" as const,
 } as const;
 
-const layout = { display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" } as const;
+/* === ВАЖНО: теперь средний блок — GRID 2 колонки, чтобы палитра и CMYK шли рядом даже на телефоне === */
+const layout = {
+  display: "grid",
+  gridTemplateColumns: "84px 1fr", // палитра фикс 84px (3*24 + 2*6), справа — всё остальное
+  columnGap: 14,
+  rowGap: 12,
+  alignItems: "start",
+} as const;
 
-/* Палитра 3×7 = 21 цвет */
-const paletteCol = { display: "grid", gridTemplateColumns: "repeat(3, 24px)", gap: 6, flexShrink: 0 } as const;
-const swatch = (c: string, active: boolean) => ({
-  width: 24, height: 20,
-  borderRadius: 6,
-  border: active ? "2px solid #222" : "1px solid #ccc",
-  background: c,
-  cursor: "pointer",
-}) as const;
+/* Палитра 3×7 = 21 цвет — фиксированная ширина 84px */
+const paletteCol = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, 24px)",
+  gap: 6,
+  width: 84,      // фикс ширина, чтобы grid всегда держал 2 колонки
+  flexShrink: 0,
+} as const;
 
-/* Колонка управления: HEX + CMYK (как было) */
-const controlsCol = { display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start", flexGrow: 1, minWidth: 160 } as const;
+const swatch = (c: string, active: boolean) =>
+  ({
+    width: 24,
+    height: 20,
+    borderRadius: 6,
+    border: active ? "2px solid #222" : "1px solid #ccc",
+    background: c,
+    cursor: "pointer",
+  }) as const;
 
-/* HEX — без пипетки, чуть уже и умеет ужиматься; рядом с ним места не занимаем */
-const hexRow = { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", width: "100%", minWidth: 0 } as const;
+/* Правая колонка: HEX + CMYK — остаются «на своём месте», но всегда справа от палитры */
+const controlsCol = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+  alignItems: "flex-start",
+  minWidth: 140,   // чтобы не схлопывалось слишком узко
+} as const;
+
+/* HEX — без пипетки; рядом с палитрой */
+const hexRow = { display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0, flexWrap: "wrap" } as const;
+
 const hexInput = {
   padding: "6px 8px",
   border: "1px solid #ddd",
@@ -74,10 +98,17 @@ const hexInput = {
   boxSizing: "border-box" as const,
 } as const;
 
-/* CMYK — остаётся под HEX */
+/* CMYK — остаётся под HEX в этой же правой колонке */
 const cmykRow = { display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" } as const;
 const cmykLabel = { width: 22, color: "#666", flexShrink: 0 } as const;
-const cmykInput = { padding: "6px 8px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, width: 70, boxSizing: "border-box" as const } as const;
+const cmykInput = {
+  padding: "6px 8px",
+  border: "1px solid #ddd",
+  borderRadius: 8,
+  fontSize: 13,
+  width: 70,
+  boxSizing: "border-box" as const,
+} as const;
 
 /* ==== палитра 21 цвет ==== */
 const PRESETS = [
@@ -155,15 +186,16 @@ export default function SideColorPicker() {
         />
       </div>
 
+      {/* Палитра | HEX+CMYK — ВСЕГДА рядом (2 колонки grid) */}
       <div style={layout}>
-        {/* Палитра */}
+        {/* Палитра 3×7 */}
         <div style={paletteCol}>
           {PRESETS.map((p) => (
             <div key={p} style={swatch(p, p === currentHex)} onClick={() => applyHex(p)} title={p} />
           ))}
         </div>
 
-        {/* Управление: HEX + CMYK (на своих местах) */}
+        {/* Правая колонка: HEX + CMYK */}
         <div style={controlsCol}>
           <div style={hexRow}>
             <input
