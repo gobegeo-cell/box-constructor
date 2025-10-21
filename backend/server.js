@@ -2,12 +2,12 @@
 import express from "express";
 import cors from "cors";
 import fileUpload from "express-fileupload";
-import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import path from "path";
+import os from "os";
 import { fileURLToPath } from "url";
-import quotesRouter from "./api/quotes.js";
-import tzRouter from "./api/tz.js";
+import fs from "fs/promises";
+import { sendManagerOrderMail } from "./mailer.js"; // <— используем Postbox-мейлер
 
 dotenv.config();
 
@@ -33,101 +33,92 @@ app.get("/api/access/check", (req, res) => {
 });
 console.log("[ACCESS] router mounted at /api/access");
 
-// ====== Почтовая отправка ======
+// ====== Почтовая отправка через Yandex Postbox ======
 app.post("/api/quotes/send", async (req, res) => {
+  const tmpFiles = [];
   try {
     const f = req.files?.file;
     if (!f?.data || !f?.size) {
       return res.status(400).json({ ok: false, error: "No file attached" });
     }
 
+    // Доп.инфо из формы
     const access = String(
       req.body?.accessCode || req.body?.promo || req.body?.access || ""
-    )
-      .trim()
-      .toUpperCase();
-    const accessInfo = access
-      ? `Код доступа: ${access}`
-      : "Код доступа: — (не указан)";
+    ).trim().toUpperCase();
+    const accessInfo = access ? `Код доступа: ${access}` : "Код доступа: — (не указан)";
 
     const to = String(req.body?.to || process.env.MANAGER_EMAIL || "").trim();
     if (!to) return res.status(400).json({ ok: false, error: "No recipient" });
 
     const subject = String(req.body?.subject || "ТЗ (менеджер)").slice(0, 200);
+    const replyTo = String(req.body?.replyTo || req.body?.email || "").trim() || undefined;
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 465),
-      secure: String(process.env.SMTP_SECURE).toLowerCase() !== "false",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      tls: { rejectUnauthorized: false },
-      logger: true,
-      debug: true,
-    });
+    // Сохраняем загруженный PDF во временный файл — Postbox ждёт путь к файлу
+    const safeName = (f.name || `TZ_Manager_${Date.now()}.pdf`).replace(/[^\w.\-]+/g, "_");
+    const tmpPath = path.join(os.tmpdir(), `${Date.now()}_${safeName}`);
+    await fs.writeFile(tmpPath, f.data);
+    tmpFiles.push(tmpPath);
 
-    const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    // Формируем текст письма
+    const text =
+      `Автоматическая отправка ТЗ\n` +
+      `${accessInfo}\n` +
+      (replyTo ? `Ответить на: ${replyTo}\n` : "");
+
+    // Отправка через Yandex Postbox API
+    const result = await sendManagerOrderMail({
       to,
       subject,
-      text: `Автоматическая отправка ТЗ\n${accessInfo}`,
-      attachments: [
-        {
-          filename: f.name || `TZ_Manager_${Date.now()}.pdf`,
-          content: f.data,
-          contentType: "application/pdf",
-        },
-      ],
+      text,
+      replyTo,
+      attachments: [{ filename: safeName, path: tmpPath }],
     });
 
-    console.log("[MAIL] sent:", info.messageId);
-    res.json({ ok: true, id: info.messageId });
+    if (!result?.ok) {
+      console.error("[MAIL] send error:", result?.error);
+      return res.status(500).json({ ok: false, error: result?.error || "Mail send failed" });
+    }
+
+    console.log("[MAIL] sent via Postbox:", result.id || "(no id)");
+    res.json({ ok: true, id: result.id });
   } catch (e) {
-    const msg = e?.response || e?.code || e?.message || String(e);
+    const msg = e?.message || String(e);
     console.error("[MAIL] error:", msg);
-    res.status(500).json({ ok: false, error: msg || "Mail send failed" });
+    res.status(500).json({ ok: false, error: msg });
+  } finally {
+    // Чистим временные файлы
+    for (const p of tmpFiles) {
+      try { await fs.unlink(p); } catch {}
+    }
   }
 });
 
-// ====== TZ и QUOTES роутеры ======
-app.use("/api/tz", tzRouter);
-app.use("/api/quotes", quotesRouter);
-
-// ====== ENV DEBUG ======
+// ====== ENV DEBUG (не выдаём секреты) ======
 app.get("/api/mail/env", (req, res) => {
+  const mask = (s) => (s ? s.slice(0, 3) + "***" + s.slice(-3) : s);
   res.json({
-    SMTP_HOST: process.env.SMTP_HOST,
-    SMTP_PORT: process.env.SMTP_PORT,
-    SMTP_SECURE: process.env.SMTP_SECURE,
-    SMTP_USER:
-      process.env.SMTP_USER?.slice(0, 2) +
-      "***" +
-      process.env.SMTP_USER?.slice(-2),
-    SMTP_FROM: process.env.SMTP_FROM,
+    POSTBOX_KEY: process.env.YANDEX_POSTBOX_API_KEY ? "present" : "missing",
+    YANDEX_FROM: process.env.YANDEX_FROM,
     MANAGER_EMAIL: process.env.MANAGER_EMAIL,
-    ACCESS_CODES: (process.env.ACCESS_CODES || "").split(",").length,
+    ACCESS_CODES: (process.env.ACCESS_CODES || "").split(",").filter(Boolean).length,
+    SMTP_LEGACY: "removed",
   });
 });
 
-// ====== SMTP проверка ======
+// ====== POSTBOX 'verify' (информативный, без реальной отправки) ======
 app.get("/api/mail/verify", async (req, res) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 465),
-      secure: String(process.env.SMTP_SECURE).toLowerCase() !== "false",
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-    await transporter.verify();
-    res.json({ ok: true, message: "SMTP ready" });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+  const ok = !!process.env.YANDEX_POSTBOX_API_KEY && !!process.env.YANDEX_FROM && !!process.env.MANAGER_EMAIL;
+  if (ok) {
+    return res.json({ ok: true, message: "Postbox ready (env present)" });
+  } else {
+    return res.status(400).json({ ok: false, error: "Missing YANDEX_POSTBOX_API_KEY / YANDEX_FROM / MANAGER_EMAIL" });
   }
 });
 
 // ====== Раздача фронтенда ======
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "../frontend/dist", "index.html"));

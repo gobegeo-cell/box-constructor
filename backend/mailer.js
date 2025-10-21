@@ -1,103 +1,88 @@
-﻿// backend/mailer.js  (ESM-версия, ПОД ЗАМЕНУ)
-import nodemailer from "nodemailer";
+﻿// backend/mailer.js  (ESM-версия, БЕЗ SMTP, через Yandex Postbox API)
+import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 
-function bool(v, def = false) {
-  if (v === undefined || v === null || v === "") return def;
-  const s = String(v).toLowerCase();
-  return s === "1" || s === "true" || s === "yes";
-}
+function buildEmailData({ from, to, subject, text, attachments = [] }) {
+  const email = {
+    from,
+    to: Array.isArray(to) ? to : [to],
+    subject: subject || '(no subject)',
+    text_body: text || '',
+  };
 
-let _transporter = null;
-
-function buildTransport() {
-  const port   = Number(process.env.SMTP_PORT || 465);
-  const secure = process.env.SMTP_SECURE !== undefined ? bool(process.env.SMTP_SECURE) : port === 465;
-
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    tls: { rejectUnauthorized: false },
-    logger: true,
-    debug: true,
-  });
-
-  const mask = (s) => (s ? s.replace(/.(?=.{2})/g, "*") : s);
-  console.log("[MAIL] init", {
-    host: process.env.SMTP_HOST,
-    port,
-    secure,
-    user: mask(process.env.SMTP_USER),
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-  });
-
-  return transporter;
-}
-
-export function getTransporter() {
-  if (!_transporter) _transporter = buildTransport();
-  return _transporter;
-}
-
-export async function verifyTransporter() {
-  const transporter = getTransporter();
-  try {
-    await transporter.verify();
-    console.log("[MAIL] SMTP ready");
-    return { ok: true };
-  } catch (err) {
-    const msg = err?.response || err?.code || err?.message || String(err);
-    console.error("[MAIL] verify error:", msg);
-    return { ok: false, error: msg };
+  // вложения: [{ filename?, path }]  -> attachments[].{name, content_type, content(base64)}
+  if (attachments && attachments.length) {
+    email.attachments = attachments
+      .filter(a => a?.path && fs.existsSync(a.path))
+      .map(a => {
+        const filePath = a.path;
+        const name = a.filename || path.basename(filePath);
+        const content = fs.readFileSync(filePath).toString('base64');
+        // если нужно другое расширение — скорректируй content_type
+        const content_type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream';
+        return { name, content_type, content };
+      });
   }
+
+  return email;
+}
+
+async function sendViaPostbox(emailData) {
+  const res = await fetch('https://postbox.api.cloud.yandex.net/v2/email/outbound-emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Api-Key ${process.env.YANDEX_POSTBOX_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(emailData),
+  });
+
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+
+  if (!res.ok) {
+    const msg = data?.message || `[Postbox ${res.status}] ${JSON.stringify(data)}`;
+    throw new Error(msg);
+  }
+
+  console.log('[MAIL] Postbox sent:', data.id || '(no id)');
+  return { ok: true, id: data.id };
 }
 
 /**
  * sendManagerOrderMail(options) — новая сигнатура:
  *   { to, subject, text, replyTo?, attachments? }
  *
- * sendManagerOrderMail(order, managerPdf) — старая сигнатура: оставлена для совместимости
+ * sendManagerOrderMail(order, managerPdf) — старая сигнатура
  */
 export async function sendManagerOrderMail(arg1, arg2) {
-  const transporter = getTransporter();
-
   // Новая сигнатура (объект)
-  const isNewSignature =
-    arg1 &&
-    typeof arg1 === "object" &&
-    ("to" in arg1 || "subject" in arg1 || "text" in arg1 || "attachments" in arg1) &&
+  const isNew =
+    arg1 && typeof arg1 === 'object' &&
+    (('to' in arg1) || ('subject' in arg1) || ('text' in arg1) || ('attachments' in arg1)) &&
     arg2 === undefined;
 
-  if (isNewSignature) {
+  const FROM = process.env.YANDEX_FROM || `Box Constructor <${process.env.MANAGER_EMAIL || 'public@pchelkinspb.ru'}>`;
+
+  if (isNew) {
     const {
       to = process.env.MANAGER_EMAIL,
-      subject = "(no subject)",
-      text = "",
+      subject = '(no subject)',
+      text = '',
       replyTo,
       attachments = [],
     } = arg1 || {};
 
-    if (!to) {
-      console.warn("[MAIL] skipped: MANAGER_EMAIL is empty");
-      return { ok: false, skipped: true, error: "MANAGER_EMAIL not set" };
-    }
+    if (!to) return { ok: false, skipped: true, error: 'MANAGER_EMAIL not set' };
 
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-
+    const emailData = buildEmailData({ from: FROM, to, subject, text, attachments });
+    if (replyTo) emailData.reply_to = replyTo; // Postbox поддерживает reply_to
     try {
-      const info = await transporter.sendMail({
-        from, to, subject, text, attachments, ...(replyTo ? { replyTo } : {}),
-      });
-      console.log("[MAIL] sent:", info.messageId);
-      return { ok: true, messageId: info.messageId };
+      return await sendViaPostbox(emailData);
     } catch (e) {
-      const msg = e?.response || e?.code || e?.message || String(e);
-      console.error("[MAIL] send error:", msg);
-      return { ok: false, error: msg };
+      console.error('[MAIL] send error:', e.message || e);
+      return { ok: false, error: e.message || String(e) };
     }
   }
 
@@ -106,10 +91,7 @@ export async function sendManagerOrderMail(arg1, arg2) {
   const managerPdf = arg2 || null;
 
   const to = process.env.MANAGER_EMAIL;
-  if (!to) {
-    console.warn("[MAIL] skipped: MANAGER_EMAIL is empty");
-    return { ok: false, skipped: true, error: "MANAGER_EMAIL not set" };
-  }
+  if (!to) return { ok: false, skipped: true, error: 'MANAGER_EMAIL not set' };
 
   const attachments = [];
   if (managerPdf?.path) {
@@ -117,21 +99,18 @@ export async function sendManagerOrderMail(arg1, arg2) {
     attachments.push({ filename: fileName, path: managerPdf.path });
   }
 
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  const subject = `Новая заявка ТЗ #${order?.id || "-"} / ${order?.client || "клиент"}`;
+  const subject = `Новая заявка ТЗ #${order?.id || '-'} / ${order?.client || 'клиент'}`;
   const text =
     `Получена новая заявка\n` +
-    `Клиент: ${order?.client || "-"}\n` +
-    `ID: ${order?.id || "-"}\n` +
-    `Дата: ${new Date(order?.date || Date.now()).toLocaleString("ru-RU")}\n`;
+    `Клиент: ${order?.client || '-'}\n` +
+    `ID: ${order?.id || '-'}\n` +
+    `Дата: ${new Date(order?.date || Date.now()).toLocaleString('ru-RU')}\n`;
 
   try {
-    const info = await transporter.sendMail({ from, to, subject, text, attachments });
-    console.log("[MAIL] sent:", info.messageId);
-    return { ok: true, messageId: info.messageId };
+    const emailData = buildEmailData({ from: FROM, to, subject, text, attachments });
+    return await sendViaPostbox(emailData);
   } catch (e) {
-    const msg = e?.response || e?.code || e?.message || String(e);
-    console.error("[MAIL] send error:", msg);
-    return { ok: false, error: msg };
+    console.error('[MAIL] send error:', e.message || e);
+    return { ok: false, error: e.message || String(e) };
   }
 }
