@@ -1,4 +1,5 @@
-﻿// backend/mailer.js  (ESM-версия, БЕЗ SMTP, через Yandex Postbox API)
+﻿// backend/mailer.js — исправленная версия
+import fetch from 'node-fetch'; // ✅ добавлено: нужно для Node < 18
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
@@ -11,7 +12,7 @@ function buildEmailData({ from, to, subject, text, attachments = [] }) {
     text_body: text || '',
   };
 
-  // вложения: [{ filename?, path }]  -> attachments[].{name, content_type, content(base64)}
+  // вложения (PDF и др.)
   if (attachments && attachments.length) {
     email.attachments = attachments
       .filter(a => a?.path && fs.existsSync(a.path))
@@ -19,8 +20,9 @@ function buildEmailData({ from, to, subject, text, attachments = [] }) {
         const filePath = a.path;
         const name = a.filename || path.basename(filePath);
         const content = fs.readFileSync(filePath).toString('base64');
-        // если нужно другое расширение — скорректируй content_type
-        const content_type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream';
+        const content_type = name.toLowerCase().endsWith('.pdf')
+          ? 'application/pdf'
+          : 'application/octet-stream';
         return { name, content_type, content };
       });
   }
@@ -39,7 +41,9 @@ async function sendViaPostbox(emailData) {
   });
 
   let data = {};
-  try { data = await res.json(); } catch (_) {}
+  try {
+    data = await res.json();
+  } catch (_) {}
 
   if (!res.ok) {
     const msg = data?.message || `[Postbox ${res.status}] ${JSON.stringify(data)}`;
@@ -50,14 +54,7 @@ async function sendViaPostbox(emailData) {
   return { ok: true, id: data.id };
 }
 
-/**
- * sendManagerOrderMail(options) — новая сигнатура:
- *   { to, subject, text, replyTo?, attachments? }
- *
- * sendManagerOrderMail(order, managerPdf) — старая сигнатура
- */
 export async function sendManagerOrderMail(arg1, arg2) {
-  // Новая сигнатура (объект)
   const isNew =
     arg1 && typeof arg1 === 'object' &&
     (('to' in arg1) || ('subject' in arg1) || ('text' in arg1) || ('attachments' in arg1)) &&
@@ -66,18 +63,13 @@ export async function sendManagerOrderMail(arg1, arg2) {
   const FROM = process.env.YANDEX_FROM || `Box Constructor <${process.env.MANAGER_EMAIL || 'public@pchelkinspb.ru'}>`;
 
   if (isNew) {
-    const {
-      to = process.env.MANAGER_EMAIL,
-      subject = '(no subject)',
-      text = '',
-      replyTo,
-      attachments = [],
-    } = arg1 || {};
+    const { to = process.env.MANAGER_EMAIL, subject = '(no subject)', text = '', replyTo, attachments = [] } = arg1 || {};
 
     if (!to) return { ok: false, skipped: true, error: 'MANAGER_EMAIL not set' };
 
     const emailData = buildEmailData({ from: FROM, to, subject, text, attachments });
-    if (replyTo) emailData.reply_to = replyTo; // Postbox поддерживает reply_to
+    if (replyTo) emailData.reply_to = replyTo;
+
     try {
       return await sendViaPostbox(emailData);
     } catch (e) {
@@ -86,7 +78,6 @@ export async function sendManagerOrderMail(arg1, arg2) {
     }
   }
 
-  // Старая сигнатура (order, managerPdf)
   const order = arg1 || {};
   const managerPdf = arg2 || null;
 
