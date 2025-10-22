@@ -1,73 +1,95 @@
 ﻿// backend/server.js
-import express from 'express';
-import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import path from "path";
+import { fileURLToPath } from "url";
+import fileUpload from "express-fileupload"; // добавлено для FormData
 
-// роутеры из папки api
-import accessRouter from './api/access.js';   // <-- правильный путь
-import quotesRouter from './api/quotes.js';   // если нужен
-import tzRouter from './api/tz.js';           // если нужен
+// роутеры
+import accessRouter from "./api/access.js";
+import quotesRouter from "./api/quotes.js";
+import tzRouter from "./api/tz.js";
 
-// отправка почты через Postbox
-import { sendManagerOrderMail } from './mailer.js';
+// отправка через Postbox
+import { sendManagerOrderMail } from "./mailer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
-// middleware
+// ===== Middleware =====
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(bodyParser.json({ limit: "10mb" }));
+app.use(
+  fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 },
+    useTempFiles: false,
+  })
+);
 
-// статический фронтенд (оставляю как у тебя)
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
+// ===== Подключение статического фронтенда =====
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-// ===== API routes =====
-app.use('/api/access', accessRouter);
-app.use('/api/quotes', quotesRouter);
-app.use('/api/tz', tzRouter);
+// ===== API маршруты =====
+app.use("/api/access", accessRouter);
+app.use("/api/quotes", quotesRouter);
+app.use("/api/tz", tzRouter);
 
-// единый маршрут для отправки писем через Postbox
-app.post('/api/send', async (req, res) => {
+// ===== Ручная отправка письма через Postbox =====
+app.post("/api/send", async (req, res) => {
   try {
-    const { to, subject, text, attachments } = req.body || {};
+    const { to, subject, text } = req.body || {};
 
     if (!to) {
-      return res.status(400).json({ success: false, error: 'No recipient (to)' });
+      return res.status(400).json({ success: false, error: "No recipient (to)" });
+    }
+
+    const attachments = [];
+
+    // Принимаем файл, если фронт шлёт FormData (например, manager ТЗ)
+    if (req.files && req.files.file) {
+      attachments.push({
+        filename: req.files.file.name,
+        content: req.files.file.data.toString("base64"),
+      });
     }
 
     const result = await sendManagerOrderMail({
       to,
-      subject: subject || '(no subject)',
-      text: text || '',
-      attachments: Array.isArray(attachments) ? attachments : [],
+      subject: subject || "Box Constructor TZ",
+      text: text || "",
+      attachments,
     });
 
     if (result?.ok) {
-      return res.status(200).json({ success: true, id: result.id });
+      res.status(200).json({ success: true, id: result.id });
     } else {
-      return res.status(502).json({ success: false, error: result?.error || 'Postbox send failed' });
+      res
+        .status(502)
+        .json({ success: false, error: result?.error || "Postbox send failed" });
     }
   } catch (err) {
-    console.error('[MAIL] crash:', err?.message || err);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
+    console.error("[MAIL] crash:", err);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 });
 
-// простой healthcheck, чтобы не было "Cannot GET /"
-app.get('/', (_req, res) => {
-  res.type('text/plain').send('Backend OK');
+// ===== Healthcheck =====
+app.get("/", (_req, res) => {
+  res.type("text/plain").send("Backend OK");
 });
 
-// SPA fallback
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+// ===== SPA fallback =====
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 });
 
-// Render-friendly port (как у тебя было)
+// ===== Запуск =====
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('[ACCESS] router mounted at /api/access');
-  console.log(`Backend up on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[ACCESS] router mounted at /api/access`);
+  console.log(`[QUOTES] router mounted at /api/quotes`);
+  console.log(`[TZ] router mounted at /api/tz`);
+  console.log(`✅ Backend up on http://localhost:${PORT}`);
 });
