@@ -1,5 +1,70 @@
-﻿node_modules
-dist
-*.log
+﻿# ============================
+# Box Constructor .gitignore
+# ============================
+
+# 🚫 Конфиденциальные файлы
 .env
+*.key
+*.pem
+
+# 🔐 Все варианты .env + оставляем только пример
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+backend/.env
+backend/.env.*
+
+# 📦 Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ⚙️ Сборка и кеш
+dist/
+build/
+.cache/
+.tmp/
+temp/
+*.log
+
+# 📸 Vite / React / Frontend
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+frontend/.DS_Store
+
+# 🧰 IDE / Системные файлы
 .DS_Store
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+
+# ☁️ Деплой / CI
+.vercel/
+vercel/
+*.local
+*.bak
+
+# 🧪 Тесты и отладка
+coverage/
+*.spec.js
+*.test.js
+*.spec.ts
+*.test.ts
+.nyc_output/
+.eslintcache
+
+# 🗃️ Временные/загрузки/вложения
+uploads/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# 🗄️ Локальные БД/дампы
+*.sqlite
+*.db
+dump.sql
