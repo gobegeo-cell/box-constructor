@@ -1,163 +1,73 @@
 ﻿// backend/server.js
-import express from "express";
-import cors from "cors";
-import fileUpload from "express-fileupload";
-import dotenv from "dotenv";
-import path from "path";
-import os from "os";
-import { fileURLToPath } from "url";
-import fs from "fs/promises";
-import { sendManagerOrderMail } from "./mailer.js";
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+// роутеры из папки api
+import accessRouter from './api/access.js';   // <-- правильный путь
+import quotesRouter from './api/quotes.js';   // если нужен
+import tzRouter from './api/tz.js';           // если нужен
 
+// отправка почты через Postbox
+import { sendManagerOrderMail } from './mailer.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
+
+// middleware
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));
-app.use(fileUpload());
+app.use(express.json({ limit: '10mb' }));
 
-// ====== ACCESS: проверка промокода ======
-app.get("/api/access/check", (req, res) => {
-  try {
-    const code = String(req.query.code || "").trim().toUpperCase();
-    const validCodes = (process.env.ACCESS_CODES || "")
-      .split(",")
-      .map((s) => s.trim().toUpperCase())
-      .filter(Boolean);
-    const canSeePrices = !!code && validCodes.includes(code);
-    res.json({ ok: true, canSeePrices });
-  } catch (err) {
-    console.error("[ACCESS] check error:", err);
-    res.status(500).json({ ok: false, error: "internal_error" });
-  }
-});
-console.log("[ACCESS] router mounted at /api/access");
+// статический фронтенд (оставляю как у тебя)
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
-// ====== POSTBOX: отправка писем менеджеру ======
-app.post("/api/quotes/send", async (req, res) => {
-  const tmpFiles = [];
+// ===== API routes =====
+app.use('/api/access', accessRouter);
+app.use('/api/quotes', quotesRouter);
+app.use('/api/tz', tzRouter);
+
+// единый маршрут для отправки писем через Postbox
+app.post('/api/send', async (req, res) => {
   try {
-    const f = req.files?.file;
-    if (!f?.data || !f?.size) {
-      return res.status(400).json({ ok: false, error: "No file attached" });
+    const { to, subject, text, attachments } = req.body || {};
+
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'No recipient (to)' });
     }
-
-    const access = String(
-      req.body?.accessCode || req.body?.promo || req.body?.access || ""
-    )
-      .trim()
-      .toUpperCase();
-    const accessInfo = access
-      ? `Код доступа: ${access}`
-      : "Код доступа: — (не указан)";
-
-    const to = String(req.body?.to || process.env.MANAGER_EMAIL || "").trim();
-    if (!to) return res.status(400).json({ ok: false, error: "No recipient" });
-
-    const subject = String(req.body?.subject || "ТЗ (менеджер)").slice(0, 200);
-    const replyTo =
-      String(req.body?.replyTo || req.body?.email || "").trim() || undefined;
-
-    const safeName = (f.name || `TZ_Manager_${Date.now()}.pdf`).replace(
-      /[^\w.\-]+/g,
-      "_"
-    );
-    const tmpPath = path.join(os.tmpdir(), `${Date.now()}_${safeName}`);
-    await fs.writeFile(tmpPath, f.data);
-    tmpFiles.push(tmpPath);
-
-    const text =
-      `Автоматическая отправка ТЗ\n` +
-      `${accessInfo}\n` +
-      (replyTo ? `Ответить на: ${replyTo}\n` : "");
 
     const result = await sendManagerOrderMail({
       to,
-      subject,
-      text,
-      replyTo,
-      attachments: [{ filename: safeName, path: tmpPath }],
+      subject: subject || '(no subject)',
+      text: text || '',
+      attachments: Array.isArray(attachments) ? attachments : [],
     });
 
-    if (!result?.ok) {
-      console.error("[MAIL] send error:", result?.error);
-      return res
-        .status(500)
-        .json({ ok: false, error: result?.error || "Mail send failed" });
+    if (result?.ok) {
+      return res.status(200).json({ success: true, id: result.id });
+    } else {
+      return res.status(502).json({ success: false, error: result?.error || 'Postbox send failed' });
     }
-
-    console.log("[MAIL] Postbox sent:", result.id || "(no id)");
-    res.json({ ok: true, id: result.id });
-  } catch (e) {
-    const msg = e?.message || String(e);
-    console.error("[MAIL] error:", msg);
-    res.status(500).json({ ok: false, error: msg });
-  } finally {
-    for (const p of tmpFiles) {
-      try {
-        await fs.unlink(p);
-      } catch {}
-    }
+  } catch (err) {
+    console.error('[MAIL] crash:', err?.message || err);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 });
 
-// ====== ENV DEBUG ======
-app.get("/api/mail/env", (req, res) => {
-  res.json({
-    POSTBOX_KEY: process.env.YANDEX_POSTBOX_API_KEY ? "present" : "missing",
-    CONFIGURED: !!(process.env.YANDEX_FROM && process.env.MANAGER_EMAIL),
-  });
+// простой healthcheck, чтобы не было "Cannot GET /"
+app.get('/', (_req, res) => {
+  res.type('text/plain').send('Backend OK');
 });
 
-// ====== VERIFY ======
-app.get("/api/mail/verify", async (req, res) => {
-  const ok =
-    !!process.env.YANDEX_POSTBOX_API_KEY &&
-    !!process.env.YANDEX_FROM &&
-    !!process.env.MANAGER_EMAIL;
-  if (ok) res.json({ ok: true, message: "Postbox ready (env present)" });
-  else
-    res.status(400).json({
-      ok: false,
-      error: "Missing YANDEX_POSTBOX_API_KEY / YANDEX_FROM / MANAGER_EMAIL",
-    });
+// SPA fallback
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
-// ====== NET DEBUG ======
-app.get("/api/net/ping-postbox", async (_req, res) => {
-  try {
-    const r = await fetch(
-      "https://postbox.api.cloud.yandex.net/v2/email/outbound-emails",
-      { method: "HEAD" }
-    );
-    res.json({ ok: r.ok, status: r.status });
-  } catch (e) {
-    res.status(502).json({ ok: false, error: e.message || String(e) });
-  }
+// Render-friendly port (как у тебя было)
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('[ACCESS] router mounted at /api/access');
+  console.log(`Backend up on http://localhost:${PORT}`);
 });
-
-// ====== FRONTEND ======
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ⚙️ Раздаём статические файлы из Vite-сборки
-app.use(express.static(path.resolve(__dirname, "../../frontend/dist")));
-
-// SPA fallback (для React/Vite роутов)
-app.get("*", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "../../frontend/dist", "index.html"));
-});
-
-// ====== Глобальный обработчик ошибок ======
-app.use((err, req, res, next) => {
-  console.error("[ERROR]", err);
-  res
-    .status(500)
-    .json({ ok: false, error: err?.message || "Internal server error" });
-});
-
-// ====== Запуск ======
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, "0.0.0.0", () =>
-  console.log(`✅ Backend + Frontend up on http://localhost:${PORT}`)
-);
