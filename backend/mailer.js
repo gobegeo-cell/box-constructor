@@ -5,7 +5,7 @@ import path from 'path';
 import { lookup as mimeLookup } from 'mime-types';
 import { setGlobalDispatcher, Agent, request as urequest } from 'undici';
 
-const POSTBOX_URL = 'https://postbox.api.cloud.yandex.net/v2/email/outbound-emails';
+const POSTBOX_URL = 'https://postbox.cloud.yandex.net/v2/email/outbound-emails';
 
 // Сборка тела письма под Postbox
 function buildEmailData({ from, to, subject, text, attachments = [] }) {
