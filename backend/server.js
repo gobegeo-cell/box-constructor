@@ -7,41 +7,48 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 
-import accessRouter from "./access.js";
-import quotesRouter from "./quotes.js";
-import tzRouter from "./tz.js";
+import accessRouter from "./api/access.js";  // <-- правильный путь
+import quotesRouter from "./api/quotes.js";  // <-- правильный путь
+import tzRouter     from "./api/tz.js";      // <-- правильный путь
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname  = path.dirname(__filename);
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 10000;
 
-// === Middleware ===
+// ===== Middleware =====
 app.use(cors());
 app.use(bodyParser.json({ limit: "10mb" }));
-app.use(fileUpload({
-  limits: { fileSize: 50 * 1024 * 1024 },
-  useTempFiles: false,
-}));
+app.use(
+  fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 },
+    useTempFiles: false,
+  })
+);
 
-// === API routes ===
+// ===== API routes =====
 app.use("/api/access", accessRouter);
 app.use("/api/quotes", quotesRouter);
 app.use("/api/tz", tzRouter);
 
-// === Static frontend build (Vite / React) ===
+// ===== Serve frontend (Vite build) =====
 const frontendPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(frontendPath));
 
-// Для SPA: если путь не найден — вернуть index.html
+// SPA fallback: любые неизвестные пути -> index.html
 app.get("*", (_req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// === Start ===
+// ===== Health (опционально) =====
+app.get("/", (_req, res) => {
+  res.type("text/plain").send("Backend OK");
+});
+
+// ===== Start =====
 app.listen(PORT, () => {
   console.log("[ACCESS] router mounted at /api/access");
   console.log("[QUOTES] router mounted at /api/quotes");
