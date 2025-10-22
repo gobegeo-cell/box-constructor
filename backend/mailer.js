@@ -2,9 +2,9 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
-import mime from 'mime-types';
+import { lookup as mimeLookup } from 'mime-types';
 
-// Форсим IPv4 и даём нормальные таймауты
+// Сеть: форсим IPv4 и ставим таймауты
 import { setGlobalDispatcher, Agent, request } from 'undici';
 setGlobalDispatcher(new Agent({
   connect: { timeout: 10_000, family: 4 },  // IPv4
@@ -29,7 +29,7 @@ function buildEmailData({ from, to, subject, text, attachments = [] }) {
         const filePath = a.path;
         const name = a.filename || path.basename(filePath);
         const content = fs.readFileSync(filePath).toString('base64');
-        const content_type = mime.lookup(name) || 'application/pdf';
+        const content_type = mimeLookup(name) || 'application/pdf';
         return { name, content_type, content };
       });
   }
