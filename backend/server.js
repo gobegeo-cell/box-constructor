@@ -7,7 +7,7 @@ import path from "path";
 import os from "os";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
-import { sendManagerOrderMail } from "./mailer.js"; // Postbox версия
+import { sendManagerOrderMail } from "./mailer.js";
 
 dotenv.config();
 
@@ -52,8 +52,7 @@ app.post("/api/quotes/send", async (req, res) => {
       : "Код доступа: — (не указан)";
 
     const to = String(req.body?.to || process.env.MANAGER_EMAIL || "").trim();
-    if (!to)
-      return res.status(400).json({ ok: false, error: "No recipient" });
+    if (!to) return res.status(400).json({ ok: false, error: "No recipient" });
 
     const subject = String(req.body?.subject || "ТЗ (менеджер)").slice(0, 200);
     const replyTo =
@@ -102,7 +101,7 @@ app.post("/api/quotes/send", async (req, res) => {
   }
 });
 
-// ====== ENV DEBUG (безопасный вывод) ======
+// ====== ENV DEBUG ======
 app.get("/api/mail/env", (req, res) => {
   res.json({
     POSTBOX_KEY: process.env.YANDEX_POSTBOX_API_KEY ? "present" : "missing",
@@ -110,7 +109,7 @@ app.get("/api/mail/env", (req, res) => {
   });
 });
 
-// ====== VERIFY: проверка конфигурации Postbox ======
+// ====== VERIFY ======
 app.get("/api/mail/verify", async (req, res) => {
   const ok =
     !!process.env.YANDEX_POSTBOX_API_KEY &&
@@ -118,15 +117,13 @@ app.get("/api/mail/verify", async (req, res) => {
     !!process.env.MANAGER_EMAIL;
   if (ok) res.json({ ok: true, message: "Postbox ready (env present)" });
   else
-    res
-      .status(400)
-      .json({
-        ok: false,
-        error: "Missing YANDEX_POSTBOX_API_KEY / YANDEX_FROM / MANAGER_EMAIL",
-      });
+    res.status(400).json({
+      ok: false,
+      error: "Missing YANDEX_POSTBOX_API_KEY / YANDEX_FROM / MANAGER_EMAIL",
+    });
 });
 
-// ====== NET DEBUG: проверка сети ======
+// ====== NET DEBUG ======
 app.get("/api/net/ping-postbox", async (_req, res) => {
   try {
     const r = await fetch(
@@ -139,13 +136,17 @@ app.get("/api/net/ping-postbox", async (_req, res) => {
   }
 });
 
-// ====== FRONTEND (если нужен позже) ======
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-// app.use(express.static(path.resolve(__dirname, "../frontend/dist")));
-// app.get("*", (req, res) => {
-//   res.sendFile(path.resolve(__dirname, "../frontend/dist", "index.html"));
-// });
+// ====== FRONTEND ======
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ⚙️ Раздаём статические файлы из Vite-сборки
+app.use(express.static(path.resolve(__dirname, "../../frontend/dist")));
+
+// SPA fallback (для React/Vite роутов)
+app.get("*", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "../../frontend/dist", "index.html"));
+});
 
 // ====== Глобальный обработчик ошибок ======
 app.use((err, req, res, next) => {
@@ -157,6 +158,6 @@ app.use((err, req, res, next) => {
 
 // ====== Запуск ======
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () =>
-  console.log(`Backend up on http://localhost:${PORT}`)
+app.listen(PORT, "0.0.0.0", () =>
+  console.log(`✅ Backend + Frontend up on http://localhost:${PORT}`)
 );
