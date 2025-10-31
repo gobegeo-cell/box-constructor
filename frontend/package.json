@@ -1,0 +1,32 @@
+{
+  "name": "box-constructor-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.13.7",
+    "aws4": "^1.13.2",
+    "file-saver": "^2.0.5",
+    "formidable": "^3.5.4",
+    "gsap": "^3.13.0",
+    "jspdf": "^3.0.2",
+    "jspdf-autotable": "^5.0.2",
+    "nodemailer": "^7.0.7",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.159.0",
+    "zustand": "^4.5.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "^5.4.0",
+    "vite": "^6.3.5"
+  }
+}

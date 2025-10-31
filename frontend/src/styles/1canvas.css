@@ -1,0 +1,8 @@
+/* Только наш R3F канвас конструктора */
+#box-canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: contain;
+}
