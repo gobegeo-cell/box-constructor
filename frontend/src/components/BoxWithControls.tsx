@@ -156,18 +156,19 @@ export default function BoxWithControls() {
             shadows
             camera={{ position: [0.4, 0.45, 0.9], fov: 40 }}
           >
-            <ambientLight intensity={0.6} />
-            <directionalLight position={[2, 3, 2]} intensity={0.8} castShadow />
-            <Environment preset="city" />
-            <OrbitControls
-              makeDefault
-              enablePan={false}
-              minPolarAngle={0.15}
-              maxPolarAngle={Math.PI / 2 - 0.06}
-              minDistance={0.4}
-              maxDistance={2.0}
-            />
-            <BoxModel />
+         <ambientLight intensity={0.6} />
+        <directionalLight position={[2, 3, 2]} intensity={0.8} castShadow />
+      <Environment files="/street_lamp_4k.exr" />
+      <OrbitControls
+        makeDefault
+        enablePan={false}
+        minPolarAngle={0.15}
+        maxPolarAngle={Math.PI / 2 - 0.06}
+        minDistance={0.4}
+        maxDistance={2.0}
+        />
+          
+       <BoxModel />
             <MobileLogoSticker />
           </Canvas>
         </div>
@@ -231,17 +232,18 @@ export default function BoxWithControls() {
             shadows
             camera={{ position: [0.4, 0.35, 0.6], fov: 40 }}
           >
-            <ambientLight intensity={0.6} />
+           <ambientLight intensity={0.6} />
             <directionalLight position={[2, 3, 2]} intensity={0.8} castShadow />
-            <Environment preset="city" />
-            <OrbitControls
-              makeDefault
-              enablePan={false}
-              minPolarAngle={0.15}
-              maxPolarAngle={Math.PI / 2 - 0.06}
-              minDistance={0.4}
-              maxDistance={2.0}
-            />
+           <Environment files="/street_lamp_4k.exr" />
+           <OrbitControls
+           makeDefault
+          enablePan={false}
+          minPolarAngle={0.15}
+          maxPolarAngle={Math.PI / 2 - 0.06}
+          minDistance={0.4}
+          maxDistance={2.0}
+          />
+
             <BoxModel />
             <LogoSticker />
           </Canvas>
