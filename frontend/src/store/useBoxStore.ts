@@ -47,6 +47,8 @@ type BoxStore = {
   width: number;
   height: number;
   depth: number;
+  sliderTray: { widthMM: number; heightMM: number; depthMM: number } | null;
+  setSliderTray: (dims: Partial<{ widthMM: number; heightMM: number; depthMM: number }>) => void;
 
   // 🎨 Цвета
   color: string;
@@ -125,6 +127,18 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
   width: 250,
   height: 80,
   depth: 160,
+  sliderTray: null,
+  setSliderTray: (dims) => set((s) => {
+    const prev = s.sliderTray ?? { widthMM: Math.max(1, s.width - 6), heightMM: Math.max(1, s.height / 2), depthMM: Math.max(1, s.depth - 6) };
+    const sliderTray = {
+      widthMM: Math.max(1, num(dims.widthMM, prev.widthMM)),
+      heightMM: Math.max(1, num(dims.heightMM, prev.heightMM)),
+      depthMM: Math.max(1, num(dims.depthMM, prev.depthMM)),
+    };
+    return s.boxType === "casketSlider"
+      ? { sliderTray, width: sliderTray.widthMM + 6, depth: sliderTray.depthMM + 6 }
+      : { sliderTray };
+  }),
 
   color: "#E8E8E8",
   sideColors: ["#000000", "#000000", "#000000", "#000000","#000000", "#000000"],
@@ -162,7 +176,16 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
     }),
   setInsertColor: (hex) => set({ insertColor: normalizeHex(hex) }),
 
-  setBoxType: (t) => set({ boxType: t }),
+  setBoxType: (t) => set((s) => ({
+    boxType: t,
+    ...(t === "casketSlider" ? {
+      sliderTray: s.sliderTray ?? {
+        widthMM: Math.max(1, s.width - 6),
+        heightMM: Math.max(1, s.height / 2),
+        depthMM: Math.max(1, s.depth - 6),
+      },
+    } : {}),
+  })),
   setSelectedSide: (side) => set({ selectedSide: side }),
 
   setLogoForSide: (side, partial) =>
@@ -221,3 +244,4 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
     "angledHex",
   ],
 }));
+

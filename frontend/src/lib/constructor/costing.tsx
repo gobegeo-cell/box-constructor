@@ -16,6 +16,7 @@ export type CostInputs = {
   quantity: number;
   currency?: string;
   boxType: BoxType;
+  sliderTray?: { widthMM: number; heightMM: number; depthMM: number };
 
   // материалы
   baseBoard: BaseBoard;
@@ -299,7 +300,7 @@ export function estimateCost(i: CostInputs) {
     sleeveInnerSheets: 0,
   };
 
-  if (i.boxType === "casket") {
+  if (i.boxType === "casket" || i.boxType === "casketSlider") {
     const { boardSheets, wrapSheets: wrapSheetsOuter, innerLidSheets, innerBottomSheets, layouts } =
       sheetsForCasketByLayouts(W, H, D, qty);
 
@@ -328,6 +329,25 @@ export function estimateCost(i: CostInputs) {
     areaPrintM2 = (i.print === "fullWrap" ? perUnitOuterM2 : 0) * qty;
     areaLamM2   = perUnitOuterM2 * qty;
     areaLogosM2 = (i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0);
+
+    if (i.boxType === "casketSlider") {
+      const tray = i.sliderTray ?? { widthMM: Math.max(1, W - 6), heightMM: Math.max(1, H / 2), depthMM: Math.max(1, D - 6) };
+      const T = lidBottomLayoutsPrecise(
+        Math.max(1, tray.widthMM), Math.max(1, tray.heightMM), Math.max(1, tray.depthMM),
+        40, LID_CLEARANCE_MM_DEFAULT
+      ).base;
+      const trayBoard = packOnSheet(T.board.w, T.board.h, qty).sheets;
+      const trayWrap = packOnSheet(T.wrap.w, T.wrap.h, qty).sheets;
+      const trayInner = addBottom ? packOnSheet(T.inner.w, T.inner.h, qty).sheets : 0;
+      sheets.board += trayBoard;
+      sheets.wrap += trayWrap;
+      sheets.inner += trayInner;
+      sheetsBreakdown.trayInnerSheets = trayInner;
+      materialCost += trayBoard * boardPrice + trayWrap * wrapPrice + trayInner * innerPrice;
+      const trayWrapAreaM2 = mm2ToM2(T.wrap.w, T.wrap.h) * qty;
+      if (i.print === "fullWrap") areaPrintM2 += trayWrapAreaM2;
+      areaLamM2 += trayWrapAreaM2;
+    }
 
   } else if (i.boxType === "lidBottom") {
     const lidH = Math.max(1, Number(i.lidHeightMM ?? ((i as any).lidLong ? H : 40)));
@@ -438,7 +458,7 @@ export function estimateCost(i: CostInputs) {
   /* ---------- ЛАМИНАЦИЯ ---------- */
   let laminationCost = 0;
   if (i.wrapPaper !== "designer_120") {
-    let lam: Lam = (i.boxType === "casket") ? (i.wrapLamination ?? "none") : (i.lamination ?? "none");
+    let lam: Lam = (i.boxType === "casket" || i.boxType === "casketSlider") ? (i.wrapLamination ?? "none") : (i.lamination ?? "none");
     if (lam === "none") lam = "matt"; // обязательна при 150 г/м²
     laminationCost = RATES.lamination[lam] * areaLamM2;
   }
@@ -510,3 +530,4 @@ export function estimateCost(i: CostInputs) {
 
 /* ===== алиас для совместимости с импортами estimatePrice ===== */
 export { estimateCost as estimatePrice };
+

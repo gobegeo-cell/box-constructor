@@ -259,6 +259,7 @@ async function extractLogosMeta(
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
   boxType: string;
+  sliderTray?: { widthMM: number; heightMM: number; depthMM: number };
   widthMM: number; heightMM: number; depthMM: number;
   quantity: number;
 
@@ -382,6 +383,10 @@ export default async function generateClientQuote(args: Args) {
   const headerLines: string[] = [];
   headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
   headerLines.push(`Габариты (мм): W ${args.widthMM} × H ${args.heightMM} × D ${args.depthMM}`);
+  if (args.boxType === "casketSlider" && args.sliderTray) {
+    const t = args.sliderTray;
+    headerLines.push(`Внутренний лоток (мм): W ${t.widthMM} × H ${t.heightMM} × D ${t.depthMM}`);
+  }
   headerLines.push(`Тираж: ${Math.max(1, Math.floor(args.quantity))} шт.`);
   headerLines.push(`Основа: ${mapBase(args.baseBoard)}`);
   headerLines.push(`Оклейка: ${mapWrap(args.wrapPaper)}`);
@@ -389,7 +394,7 @@ export default async function generateClientQuote(args: Args) {
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
-  const innerWrap = (args.boxType === "lidBottom" || args.boxType === "casket") ? args.wrapPaper : "none";
+  const innerWrap = (args.boxType === "lidBottom" || (args.boxType === "casket" || args.boxType === "casketSlider")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else if (args.boxType === "drawer") {
@@ -532,3 +537,4 @@ export default async function generateClientQuote(args: Args) {
     return;
   }
 }
+

@@ -134,7 +134,7 @@ function extractLogosMeta(logos: any, dims: { W: number; H: number; D: number },
   if (!logos || typeof logos !== "object") return out;
   for (const [sideRaw, v] of Object.entries(logos)) {
     let side = normalizeSideKey(String(sideRaw));
-    if (boxType === "casket" && side === "front" && !(logos as any)["front_flap"]) side = "front_flap";
+    if ((boxType === "casket" || boxType === "casketSlider") && side === "front" && !(logos as any)["front_flap"]) side = "front_flap";
     if (boxType !== "casket" && side === "front_flap") side = "front";
     const face = getFaceMM(side, dims);
     const list = Array.isArray(v) ? v : [v];
@@ -158,6 +158,8 @@ export default function PriceEstimator() {
     width: s.width, height: s.height, depth: s.depth,
     boxType: s.boxType, sideColors: s.sideColors, logos: s.logos,
   }));
+
+  const sliderTray = useBoxStore((s) => s.sliderTray);
 
   // store: код/сброс
   const status          = useUiStore((s) => s.status);
@@ -198,22 +200,22 @@ export default function PriceEstimator() {
   // ламинация
   const lamDisabled = wrapPaper === "designer_120";
   const lamRequired = wrapPaper === "offset_150" || wrapPaper === "coated_150";
-  const lamValue = boxType === "casket" ? wrapLam : lamination;
+  const lamValue = (boxType === "casket" || boxType === "casketSlider") ? wrapLam : lamination;
   const setLamValue = (v: "none" | "matt" | "gloss") =>
-    boxType === "casket" ? setWrapLam(v) : setLamination(v);
+    (boxType === "casket" || boxType === "casketSlider") ? setWrapLam(v) : setLamination(v);
 
   useEffect(() => {
     if (lamDisabled) {
-      boxType === "casket" ? setWrapLam("none") : setLamination("none");
+      (boxType === "casket" || boxType === "casketSlider") ? setWrapLam("none") : setLamination("none");
     } else if (lamRequired) {
-      boxType === "casket"
+      (boxType === "casket" || boxType === "casketSlider")
         ? wrapLam === "none" && setWrapLam("matt")
         : lamination === "none" && setLamination("matt");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapPaper, boxType]);
 
-  const innerPaperAuto = boxType === "lidBottom" || boxType === "casket" ? wrapPaper : "none";
+  const innerPaperAuto = boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider") ? wrapPaper : "none";
 
   // inputs
   const inputs = useMemo(() => {
@@ -221,18 +223,19 @@ export default function PriceEstimator() {
     const logosMeta = extractLogosMeta(logos, { W, H, D }, String(boxType || ""));
     const base = {
       widthMM: W, heightMM: H, depthMM: D, boxType,
+      sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       quantity: Math.max(1, Math.floor(quantity)), currency, print,
       baseBoard, wrapPaper: wrapPaper as any, innerPaper: innerPaperAuto as any,
       innerMode, drawerSleeveInner,
       finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
       logosMeta,
     };
-    const lamObj = boxType === "casket"
+    const lamObj = (boxType === "casket" || boxType === "casketSlider")
       ? { wrapLamination: lamDisabled ? "none" : wrapLam || (lamRequired ? "matt" : "none") }
       : { lamination: lamDisabled ? "none" : lamination || (lamRequired ? "matt" : "none") };
     const lidLongObj = boxType === "lidBottom" ? { lidLong: !!lidLong } : {};
     return { ...base, ...lamObj, ...lidLongObj };
-  }, [width,height,depth,boxType,quantity,currency,print,baseBoard,wrapPaper,lamination,wrapLam,innerPaperAuto,innerMode,lamDisabled,lamRequired,finBlind,finFoil,finUV,finMagnets,lidLong,drawerSleeveInner,logos]);
+  }, [width,height,depth,boxType,sliderTray,quantity,currency,print,baseBoard,wrapPaper,lamination,wrapLam,innerPaperAuto,innerMode,lamDisabled,lamRequired,finBlind,finFoil,finUV,finMagnets,lidLong,drawerSleeveInner,logos]);
 
   const out = useMemo(() => estimateCost(inputs as any), [inputs]);
 
@@ -290,6 +293,7 @@ function generatePDF() {
   try {
     const metaCommon = {
       boxType,
+      sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       widthMM: Number(width) || 0,
       heightMM: Number(height) || 0,
       depthMM: Number(depth) || 0,
@@ -546,3 +550,4 @@ function buildPricing(out: any, qty: number) {
   const perUnit = Number.isFinite(out?.perUnit) ? Number(out.perUnit) : total / q;
   return { currency, rows, total, perUnit };
 }
+

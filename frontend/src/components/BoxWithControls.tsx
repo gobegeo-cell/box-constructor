@@ -25,6 +25,9 @@ const DEFAULT_H = 160;
 const DEFAULT_D = 80;
 
 export default function BoxWithControls() {
+  const boxType = useBoxStore((s) => s.boxType);
+  const sliderTray = useBoxStore((s) => s.sliderTray);
+  const setSliderTray = useBoxStore((s) => s.setSliderTray);
   const width = useBoxStore((s) => s.width);
   const height = useBoxStore((s) => s.height);
   const depth = useBoxStore((s) => s.depth);
@@ -202,6 +205,30 @@ export default function BoxWithControls() {
         </div>
 
         <TypeSelector />
+        {boxType === "casketSlider" && sliderTray && (
+          <div style={card}>
+            <div style={cardTitle}>Внутренний лоток (мм)</div>
+            <SizesRow
+              wStore={sliderTray.widthMM}
+              hStore={sliderTray.heightMM}
+              dStore={sliderTray.depthMM}
+              onW={(widthMM) => setSliderTray({ widthMM })}
+              onH={(heightMM) => setSliderTray({ heightMM })}
+              onD={(depthMM) => setSliderTray({ depthMM })}
+              commitOnBlur
+            />
+            <div style={{ fontSize: 12, marginTop: 8, color: "#666" }}>
+              При изменении лотка наружные W и D становятся на 6 мм больше.
+              Затем наружную коробку можно увеличить в полях выше. Её высота сохраняется.
+            </div>
+            {(Number(width) < sliderTray.widthMM + 6 || Number(depth) < sliderTray.depthMM + 6 || Number(height) < sliderTray.heightMM) && (
+              <div role="alert" style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>
+                Лоток не помещается: наружные W и D должны быть минимум на 6 мм больше лотка,
+                а наружная высота — не меньше высоты лотка.
+              </div>
+            )}
+          </div>
+        )
         <SideColorPicker />
         <SideSelector />
         {isMobile ? <MobileLogoEditor /> : <LogoEditor />}
@@ -261,6 +288,7 @@ function SizesRow({
   onW,
   onH,
   onD,
+  commitOnBlur = false,
 }: {
   wStore: number;
   hStore: number;
@@ -268,6 +296,7 @@ function SizesRow({
   onW: (n: number) => void;
   onH: (n: number) => void;
   onD: (n: number) => void;
+  commitOnBlur?: boolean;
 }) {
   const [wStr, setWStr] = useState(String(wStore));
   const [hStr, setHStr] = useState(String(hStore));
@@ -314,7 +343,7 @@ function SizesRow({
       const val = e.currentTarget.value;
       setter(val);
       const n = parseFloat(val.replace(",", "."));
-      if (!isNaN(n)) apply(n);
+      if (!commitOnBlur && !isNaN(n)) apply(n);
     };
 
   return (
@@ -334,6 +363,13 @@ function SizesRow({
           value={wStr}
           onFocus={selectAll}
           onChange={onChangeNum(setWStr, onW)}
+          onBlur={() => {
+            if (!commitOnBlur) return;
+            const n = Number(wStr.replace(",", "."));
+            if (Number.isFinite(n) && n > 0) onW(n);
+            else setWStr(String(wStore));
+          }}
+          onKeyDown={(e) => { if (commitOnBlur && e.key === "Enter") e.currentTarget.blur(); }}
           style={inputStyle}
         />
       </div>
@@ -345,6 +381,13 @@ function SizesRow({
           value={hStr}
           onFocus={selectAll}
           onChange={onChangeNum(setHStr, onH)}
+          onBlur={() => {
+            if (!commitOnBlur) return;
+            const n = Number(hStr.replace(",", "."));
+            if (Number.isFinite(n) && n > 0) onH(n);
+            else setHStr(String(hStore));
+          }}
+          onKeyDown={(e) => { if (commitOnBlur && e.key === "Enter") e.currentTarget.blur(); }}
           style={inputStyle}
         />
       </div>
@@ -356,6 +399,13 @@ function SizesRow({
           value={dStr}
           onFocus={selectAll}
           onChange={onChangeNum(setDStr, onD)}
+          onBlur={() => {
+            if (!commitOnBlur) return;
+            const n = Number(dStr.replace(",", "."));
+            if (Number.isFinite(n) && n > 0) onD(n);
+            else setDStr(String(dStore));
+          }}
+          onKeyDown={(e) => { if (commitOnBlur && e.key === "Enter") e.currentTarget.blur(); }}
           style={inputStyle}
         />
       </div>
