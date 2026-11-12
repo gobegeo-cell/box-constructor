@@ -203,6 +203,9 @@ export default function PriceEstimator() {
   const [offerPrice, setOfferPrice] = useState("");
   const [offerBasis, setOfferBasis] = useState<"unit" | "total">("unit");
   const [offerShipment, setOfferShipment] = useState("");
+  const [designerPaperName, setDesignerPaperName] = useState("");
+  const [foilColor, setFoilColor] = useState("");
+  const [productionDetails, setProductionDetails] = useState<{ designerPaperName: string; foilColor: string } | undefined>();
   const [offerSignature, setOfferSignature] = useState(() => {
     try { return localStorage.getItem("pchelkin-manager-signature") || ""; } catch { return ""; }
   });
@@ -232,9 +235,12 @@ export default function PriceEstimator() {
       price: Number(offerPrice.replace(",", ".")), priceBasis: offerBasis,
       shipment: offerShipment.trim(), signatureDataUrl: offerSignature,
     };
-    if (!validateOffer(offer)) { setOfferError("Укажи цену больше нуля, срок отгрузки и выбери подпись."); return; }
+    const hasOffer = !!offerPrice.trim() || !!offerShipment.trim();
+    if (hasOffer && !validateOffer(offer)) { setOfferError("Для цены и отгрузки укажи цену больше нуля, срок и выбери подпись."); return; }
     try { localStorage.setItem("pchelkin-manager-signature", offer.signatureDataUrl); } catch {}
-    setManualOffer(offer); setOfferOpen(false); setOfferError("");
+    setManualOffer(hasOffer ? offer : undefined);
+    setProductionDetails({ designerPaperName: designerPaperName.trim(), foilColor: foilColor.trim() });
+    setOfferOpen(false); setOfferError("");
   }
 
   // занятость (защита от дабл-кликов)
@@ -338,6 +344,8 @@ function generatePDF() {
   try {
     const metaCommon = {
       manualOffer: isGeoCode(promo) ? manualOffer : undefined,
+      designerPaperName: isGeoCode(promo) && wrapPaper === "designer_120" ? productionDetails?.designerPaperName : undefined,
+      foilColor: isGeoCode(promo) && finFoil ? productionDetails?.foilColor : undefined,
       boxType,
       tiers: boxType === "tierCasket" ? tiers : undefined,
       vCutInsert: (boxType === "vCutHex" || boxType === "angledHex") && vCutInsertEnabled ? vCutInsert : undefined,
@@ -489,7 +497,7 @@ function generatePDF() {
           value={promo}
           onChange={(e) => {
             const next = e.currentTarget.value; setPromo(next);
-            if (!isGeoCode(next)) { setManualOffer(undefined); setOfferOpen(false); }
+            if (!isGeoCode(next)) { setManualOffer(undefined); setProductionDetails(undefined); setOfferOpen(false); }
           }}
           style={{ padding: "6px 8px", border: "1px solid #ddd", borderRadius: 8, minWidth: 160 }}
         />
@@ -507,7 +515,7 @@ function generatePDF() {
         <button
           type="button"
           disabled={isChecking}
-          onClick={() => { setPromo(""); resetAccess(); setManualOffer(undefined); setOfferOpen(false); }}
+          onClick={() => { setPromo(""); resetAccess(); setManualOffer(undefined); setProductionDetails(undefined); setOfferOpen(false); }}
           style={{ padding: "8px 12px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: isChecking ? "not-allowed" : "pointer", opacity: isChecking ? 0.6 : 1 }}
         >
           Сброс
@@ -517,7 +525,11 @@ function generatePDF() {
 
       {codeLocalBypass && (
         <div style={{ marginTop: 12 }}>
-          <button type="button" onClick={() => setOfferOpen(true)}>Цена, отгрузка и подпись для ТЗ</button>
+          <button type="button" onClick={() => setOfferOpen(true)}>Условия и материалы для ТЗ</button>
+          {productionDetails && <div>
+            {wrapPaper === "designer_120" && productionDetails.designerPaperName && <div>Бумага: {productionDetails.designerPaperName}</div>}
+            {finFoil && productionDetails.foilColor && <div>Фольга: {productionDetails.foilColor}</div>}
+          </div>}
           {manualOffer && <div>
             В ТЗ: {fmtCur(offerAmounts(manualOffer, quantity).total, "₽")} за тираж.
             Отгрузка: {manualOffer.shipment}.
@@ -530,7 +542,16 @@ function generatePDF() {
           onKeyDown={(e) => { if (e.key === "Escape") setOfferOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="offer-title"
             style={{ background: "#fff", color: "#111", borderRadius: 12, padding: 20, width: 440, maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", display: "grid", gap: 12 }}>
-            <h3 id="offer-title" style={{ margin: 0 }}>Цена и отгрузка для ТЗ</h3>
+            <h3 id="offer-title" style={{ margin: 0 }}>Условия и материалы для ТЗ</h3>
+            {wrapPaper === "designer_120" && <label>Название и цвет дизайнерской бумаги
+              <input value={designerPaperName} maxLength={120} placeholder="Например: Перграфика, чёрная"
+                onChange={(e) => setDesignerPaperName(e.currentTarget.value)} style={{ display: "block", width: "100%" }} />
+            </label>}
+            {finFoil && <label>Цвет фольги для тиснения
+              <input value={foilColor} maxLength={120} placeholder="Например: золото матовое, номер фольги"
+                onChange={(e) => setFoilColor(e.currentTarget.value)} style={{ display: "block", width: "100%" }} />
+            </label>}
+            <small>Название бумаги и цвет фольги можно сохранить без цены и срока отгрузки.</small>
             <label>Цена, ₽
               <input autoFocus type="text" inputMode="decimal" value={offerPrice} onChange={(e) => setOfferPrice(e.currentTarget.value)} style={{ display: "block", width: "100%" }} />
             </label>

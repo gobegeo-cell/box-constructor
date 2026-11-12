@@ -267,6 +267,8 @@ async function extractLogosMeta(
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
   manualOffer?: ManualOffer;
+  designerPaperName?: string;
+  foilColor?: string;
   boxType: string;
   vCutInsert?: { widthMM: number; heightMM: number; depthMM: number };
   tiers?: TierSettings;
@@ -423,10 +425,12 @@ export default async function generateManagerQuote(args: Args) {
   }
   headerLines.push(`Тираж: ${Math.max(1, Math.floor(args.quantity))} шт.`);
   headerLines.push(`Основа: ${mapBase(args.baseBoard)}`);
-  headerLines.push(`Оклейка: ${mapWrap(args.wrapPaper)}`);
+  const paperName = args.wrapPaper === "designer_120" ? args.designerPaperName?.trim().slice(0, 120) : "";
+  headerLines.push(`Оклейка: ${mapWrap(args.wrapPaper)}${paperName ? " — " + paperName : ""}`);
   if (selectedLam !== "none") headerLines.push(`Ламинация: ${mapLam(selectedLam)}`);
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
+  if (args.finishing?.foilStamp && args.foilColor?.trim()) headerLines.push(`Цвет фольги: ${args.foilColor.trim().slice(0, 120)}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
   const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || (args.boxType === "vCutHex" || args.boxType === "angledHex")) || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap" || args.boxType === "tierCasket")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
