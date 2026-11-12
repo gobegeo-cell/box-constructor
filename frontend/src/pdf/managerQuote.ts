@@ -405,7 +405,7 @@ export default async function generateManagerQuote(args: Args) {
   const innerWrap = (args.boxType === "lidBottom" || args.boxType === "casket") ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
-  } else if (args.boxType === "casketSlider") {
+  } else if (args.boxType === "drawer") {
     if ((args as any).innerMode === "bottom") headerLines.push(`Кашировка внутри дна: ${mapWrap(args.wrapPaper)}`);
     if ((args as any).drawerSleeveInner) headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else {
