@@ -231,38 +231,8 @@ function sheetsForLidBottomPrecise(W:number,H:number,D:number,qty:number, lidH:n
 /* =========================
    ПЕНАЛ (drawer)
    ========================= */
-function drawerLayoutsPrecise(W:number, H:number, D:number, clearance:number) {
-  const WL = W + clearance;
-  const DL = D + clearance;
-  const HL = H + clearance;
-
-  // Лоток (tray) как дно
-  const trayCoreW = W + 2*H;
-  const trayCoreH = D + 2*H;
-  const trayDieW  = trayCoreW + DIECUT_ADD;
-  const trayDieH  = trayCoreH + DIECUT_ADD;
-  const trayWrapW = trayCoreW + OUTER_ADD;
-  const trayWrapH = trayCoreH + OUTER_ADD;
-  const trayInnerW = trayDieW;   // как в lidBottom для крышки
-  const trayInnerH = trayDieH;
-
-  // Чехол (sleeve)
-  const sleeveCoreW = 2*WL + HL;
-  const sleeveCoreH = DL + 2*HL;
-  const sleeveDieW  = sleeveCoreW + 20;
-  const sleeveDieH  = sleeveCoreH + 20;
-  const sleeveWrapW = sleeveCoreW + 80;
-  const sleeveWrapH = sleeveCoreH + 80;
-  const sleeveInnerW = sleeveCoreW + 10;
-  const sleeveInnerH = sleeveCoreH + 10;
-
-  return {
-    tray:   { board:{w:trayDieW,h:trayDieH}, wrap:{w:trayWrapW,h:trayWrapH}, inner:{w:trayInnerW,h:trayInnerH} },
-    sleeve: { board:{w:sleeveDieW,h:sleeveDieH}, wrap:{w:sleeveWrapW,h:sleeveWrapH}, inner:{w:sleeveInnerW,h:sleeveInnerH} }
-  };
-}
-// Production layout for the casket slider; W × D footprint, H tray height.
-function casketSliderLayouts(W:number, H:number, D:number) {
+// Production layout for the drawer (пенал); W × D footprint, H tray height.
+function drawerLayoutsPrecise(W:number, H:number, D:number) {
   const tray = lidBottomLayoutsPrecise(W, H, D, 40, LID_CLEARANCE_MM_DEFAULT).base;
   const panelW = W + 6;
   const panelD = D + 5;
@@ -279,8 +249,8 @@ function casketSliderLayouts(W:number, H:number, D:number) {
   };
 }
 
-function sheetsForDrawerPrecise(W:number,H:number,D:number,qty:number, clearance:number, slider = false) {
-  const L = slider ? casketSliderLayouts(W,H,D) : drawerLayoutsPrecise(W,H,D,clearance);
+function sheetsForDrawerPrecise(W:number,H:number,D:number,qty:number) {
+  const L = drawerLayoutsPrecise(W,H,D);
   const trayBoard   = packOnSheet(L.tray.board.w,   L.tray.board.h,   qty);
   const trayWrap    = packOnSheet(L.tray.wrap.w,    L.tray.wrap.h,    qty);
   const trayInner   = packOnSheet(L.tray.inner.w,   L.tray.inner.h,   qty);
@@ -390,9 +360,8 @@ export function estimateCost(i: CostInputs) {
     areaLamM2   = perUnitWrapAreaM2 * qty;
     areaLogosM2 = (i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0);
 
-  } else if (i.boxType === "drawer" || i.boxType === "casketSlider") {
-    const clearance = Math.max(0, Number(i.lidClearanceMM ?? LID_CLEARANCE_MM_DEFAULT));
-    const S = sheetsForDrawerPrecise(W, H, D, qty, clearance, i.boxType === "casketSlider");
+  } else if (i.boxType === "drawer") {
+    const S = sheetsForDrawerPrecise(W, H, D, qty);
 
     const addTrayInner   = (i.innerMode ?? "none") === "bottom";
     const addSleeveInner = !!i.drawerSleeveInner;
@@ -436,8 +405,8 @@ export function estimateCost(i: CostInputs) {
     areaLogosM2 = (i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0);
 
   } else if (i.boxType === "hex") {
-    // The UI's "Футляр" uses the slider sleeve without its tray.
-    const L = casketSliderLayouts(W, H, D).sleeve;
+    // The UI's "Футляр" uses the drawer sleeve without its tray.
+    const L = drawerLayoutsPrecise(W, H, D).sleeve;
     sheets.board = packOnSheet(L.board.w, L.board.h, qty).sheets;
     sheets.wrap = packOnSheet(L.wrap.w, L.wrap.h, qty).sheets;
     sheets.inner = packOnSheet(L.inner.w, L.inner.h, qty).sheets;
