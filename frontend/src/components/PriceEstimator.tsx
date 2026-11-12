@@ -351,11 +351,11 @@ function generatePDF() {
   const isChecking = status === "checking";
   const isAppDown = typeof navigator !== "undefined" ? !navigator.onLine : false; // оффлайн: шапку прячем
 
-  // нижняя часть скрыта до ввода кода (или Geo)
-  const codeLocalBypass = (promo || "").trim().toUpperCase() === "GEO";
+  // нижняя часть скрыта до ввода кода (или G)
+  const codeLocalBypass = (promo || "").trim().toUpperCase() === "G";
   const checkedCode = useUiStore((s) => s.accessCode);
   const typedCode = promo.trim().toUpperCase();
-  const canRevealBottom = typedCode !== "ЯПРОМКОД" &&
+  const canRevealBottom = typedCode !== "ЯПРОМКОД" && typedCode !== "GEO" &&
     ((status === "ok" && checkedCode === typedCode) || codeLocalBypass);
 
   return (
