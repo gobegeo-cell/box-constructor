@@ -53,7 +53,7 @@ function mapBoxTypeRu(t: string) {
     case "casketSlider": return "Шкатулка слайдер";
     case "lidBottom": return "Крышка-дно";
     case "drawer": return "Пенал";
-    case "hex": return "Шестигранная";
+    case "hex": return "Футляр";
     case "case":
     case "futlyar": return "Футляр";
     default: return t || "Коробка";
@@ -403,7 +403,9 @@ export default async function generateManagerQuote(args: Args) {
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
   const innerWrap = (args.boxType === "lidBottom" || args.boxType === "casket") ? args.wrapPaper : "none";
-  if (args.boxType === "casketSlider") {
+  if (args.boxType === "hex") {
+    headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
+  } else if (args.boxType === "casketSlider") {
     if ((args as any).innerMode === "bottom") headerLines.push(`Кашировка внутри дна: ${mapWrap(args.wrapPaper)}`);
     if ((args as any).drawerSleeveInner) headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else {
