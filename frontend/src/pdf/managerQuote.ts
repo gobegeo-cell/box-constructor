@@ -66,7 +66,7 @@ function mapWrap(v: string) {
   switch (v) {
     case "designer_120": return "Дизайнерская 120 г/м²";
     case "offset_150":   return "Офсетная 150 г/м²";
-    case "coated_150":   return "Мелованная 150 г/м²";
+    case "coated_150":   return "Мелованная бумага 150 г/м²";
     case "none":         return "—";
     default:             return v || "—";
   }
@@ -389,20 +389,20 @@ export default async function generateManagerQuote(args: Args) {
   doc.text("Параметры заказа", rightX, ry); ry += 5;
   setNormal(); doc.setFontSize(12);
 
-  const lamText =
-    args.wrapPaper === "designer_120"
-      ? "Ламинация: нет"
-      : `Ламинация: ${mapLam(args.wrapLamination ?? args.lamination ?? "none")}`;
+  const selectedLam = args.wrapPaper === "designer_120"
+    ? "none" : (args.wrapLamination ?? args.lamination ?? "none");
+  const lamText = selectedLam === "none"
+    ? "без ламинации" : `${mapLam(selectedLam).toLowerCase()} ламинация`;
+  const printText = args.print === "fullWrap" ? "полноцветная печать" : "печать только логотипов";
 
   const headerLines: string[] = [];
   headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
   headerLines.push(`Габариты (мм): W ${args.widthMM} × H ${args.heightMM} × D ${args.depthMM}`);
   headerLines.push(`Тираж: ${Math.max(1, Math.floor(args.quantity))} шт.`);
   headerLines.push(`Основа: ${mapBase(args.baseBoard)}`);
-  headerLines.push(`Оклейка: ${mapWrap(args.wrapPaper)} (${lamText})`);
+  headerLines.push(`Оклейка: ${mapWrap(args.wrapPaper)}, ${printText} + ${lamText}`);
   const innerWrap = (args.boxType === "lidBottom" || args.boxType === "casket") ? args.wrapPaper : "none";
   headerLines.push(`Футеровка: ${mapWrap(innerWrap)}`);
-  headerLines.push(`Печать: ${args.print === "fullWrap" ? "Полноцвет (вся площадь)" : "Только логотипы"}`);
 
   if (args.print === "fullWrap" && args.fullWrapFileName) {
     headerLines.push(`Макет полноцвета: ${args.fullWrapFileName}`);
