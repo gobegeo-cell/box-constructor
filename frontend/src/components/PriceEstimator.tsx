@@ -218,7 +218,7 @@ export default function PriceEstimator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapPaper, boxType]);
 
-  const innerPaperAuto = boxType === "vCutHex" || boxType === "hexBox" || boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket") ? wrapPaper : "none";
+  const innerPaperAuto = (boxType === "vCutHex" || boxType === "angledHex") || boxType === "hexBox" || boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket") ? wrapPaper : "none";
 
   // inputs
   const inputs = useMemo(() => {
@@ -227,7 +227,7 @@ export default function PriceEstimator() {
     const base = {
       widthMM: W, heightMM: H, depthMM: D, boxType,
       tiers: boxType === "tierCasket" ? tiers : undefined,
-      vCutInsert: boxType === "vCutHex" && vCutInsertEnabled ? vCutInsert : undefined,
+      vCutInsert: (boxType === "vCutHex" || boxType === "angledHex") && vCutInsertEnabled ? vCutInsert : undefined,
       sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       quantity: Math.max(1, Math.floor(quantity)), currency, print,
       baseBoard, wrapPaper: wrapPaper as any, innerPaper: innerPaperAuto as any,
@@ -299,7 +299,7 @@ function generatePDF() {
     const metaCommon = {
       boxType,
       tiers: boxType === "tierCasket" ? tiers : undefined,
-      vCutInsert: boxType === "vCutHex" && vCutInsertEnabled ? vCutInsert : undefined,
+      vCutInsert: (boxType === "vCutHex" || boxType === "angledHex") && vCutInsertEnabled ? vCutInsert : undefined,
       sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       widthMM: Number(width) || 0,
       heightMM: Number(height) || 0,

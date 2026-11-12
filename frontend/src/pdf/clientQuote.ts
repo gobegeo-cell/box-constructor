@@ -54,6 +54,7 @@ function mapBoxTypeRu(t: string) {
     case "lidBottom": return "Крышка-дно";
     case "hexBox": return "V крышка";
     case "vCutHex": return "V-образная крышка";
+    case "angledHex": return "Угловая коробка";
     case "tierCasket": return "Ярусная коробка";
     case "drawer": return "Пенал";
     case "hex": return "Футляр";
@@ -395,7 +396,7 @@ export default async function generateClientQuote(args: Args) {
       headerLines.push(`Ярус ${index + 1}: ${t.widthMM} × ${t.depthMM} × ${t.heightMM} мм; лотков: ${t.count}`);
     });
   }
-  if (args.boxType === "vCutHex" && args.vCutInsert) {
+  if ((args.boxType === "vCutHex" || args.boxType === "angledHex") && args.vCutInsert) {
     const t = args.vCutInsert;
     headerLines.push(`Вставка (мм): ${t.widthMM} × ${t.depthMM} × ${t.heightMM}`);
     headerLines.push("Видимая полоса вставки: 10 мм");
@@ -411,7 +412,7 @@ export default async function generateClientQuote(args: Args) {
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
-  const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || args.boxType === "vCutHex") || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap" || args.boxType === "tierCasket")) ? args.wrapPaper : "none";
+  const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || (args.boxType === "vCutHex" || args.boxType === "angledHex")) || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap" || args.boxType === "tierCasket")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else if (args.boxType === "drawer") {

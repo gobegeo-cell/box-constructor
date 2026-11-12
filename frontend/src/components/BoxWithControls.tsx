@@ -236,8 +236,8 @@ export default function BoxWithControls() {
             <div style={{ marginTop: 8 }}>Верхний ярус: 2 лотка по {(tiers.widthMM - 3) / 2} × {tiers.depthMM} × {tiers.upperHeightMM} мм.</div>
             <div>Наружная высота: {tiers.lowerHeightMM} + 5 + {tiers.middleHeightMM} + 2 + {tiers.upperHeightMM} + 2 = {height} мм.</div>
           </div>
-        )
-        {boxType === "vCutHex" && (
+        )}
+        {(boxType === "vCutHex" || boxType === "angledHex") && (
           <div style={card}>
             <label><input type="checkbox" checked={vCutInsertEnabled} onChange={(e) => setVCutInsertEnabled(e.currentTarget.checked)} /> Внутренняя вставка</label>
             {vCutInsertEnabled && <>
@@ -246,9 +246,10 @@ export default function BoxWithControls() {
                 onW={(v) => setVCutInsert({ widthMM: v })} onH={(v) => setVCutInsert({ heightMM: v })}
                 onD={(v) => setVCutInsert({ depthMM: v })} commitOnBlur />
               <div>Наружные части без зазора: {vCutInsert.widthMM + 5} × {vCutInsert.depthMM + 4} × {vCutInsert.heightMM - 10} мм. Полоса вставки: 10 мм.</div>
+              {boxType === "angledHex" && <div>Высота дна и крышки: по {(vCutInsert.heightMM - 10) / 2} мм.</div>}
             </>}
           </div>
-        )
+        )}
         {boxType === "casketSlider" && sliderTray && (
           <div style={card}>
             <div style={cardTitle}>Внутренний лоток (мм)</div>
@@ -272,7 +273,7 @@ export default function BoxWithControls() {
               </div>
             )}
           </div>
-        )
+        )}
         <SideColorPicker />
         <SideSelector />
         {isMobile ? <MobileLogoEditor /> : <LogoEditor />}

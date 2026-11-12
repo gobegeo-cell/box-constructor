@@ -138,7 +138,7 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
   vCutInsert: { widthMM: 250, heightMM: 80, depthMM: 180 },
   setVCutInsertEnabled: (enabled) => set((s) => {
     const t = s.vCutInsert;
-    return enabled && s.boxType === "vCutHex"
+    return enabled && (s.boxType === "vCutHex" || s.boxType === "angledHex")
       ? { vCutInsertEnabled: enabled, width: t.widthMM + 5, depth: t.depthMM + 4, height: t.heightMM - 10 }
       : { vCutInsertEnabled: enabled };
   }),
@@ -149,7 +149,7 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
       depthMM: Math.max(1, num(dims.depthMM, t.depthMM)),
       heightMM: Math.max(11, num(dims.heightMM, t.heightMM)),
     };
-    return s.boxType === "vCutHex" && s.vCutInsertEnabled
+    return (s.boxType === "vCutHex" || s.boxType === "angledHex") && s.vCutInsertEnabled
       ? { vCutInsert, width: vCutInsert.widthMM + 5, depth: vCutInsert.depthMM + 4, height: vCutInsert.heightMM - 10 }
       : { vCutInsert };
   }),
@@ -212,6 +212,9 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
 
   setBoxType: (t) => set((s) => ({
     boxType: t,
+    ...((t === "vCutHex" || t === "angledHex") && s.vCutInsertEnabled ? {
+      width: s.vCutInsert.widthMM + 5, depth: s.vCutInsert.depthMM + 4, height: s.vCutInsert.heightMM - 10,
+    } : {}),
     ...(t === "tierCasket" ? (() => {
       const g = tierGeometry(s.tiers);
       return { width: g.width, height: g.height, depth: g.depth };
