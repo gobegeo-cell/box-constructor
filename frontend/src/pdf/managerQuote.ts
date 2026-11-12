@@ -270,6 +270,9 @@ type Args = {
 
   baseBoard: "chip_1_5" | "chip_2_0" | string;
   wrapPaper: string;
+  lamination?: "none" | "matt" | "gloss";
+  wrapLamination?: "none" | "matt" | "gloss";
+  fullWrapFileName?: string;
   print: "logosOnly" | "fullWrap";
   finishing?: Finishing;
 
@@ -389,7 +392,7 @@ export default async function generateManagerQuote(args: Args) {
   const lamText =
     args.wrapPaper === "designer_120"
       ? "Ламинация: нет"
-      : `Ламинация: ${mapLam("matt")}`; // при необходимости подставь фактическую
+      : `Ламинация: ${mapLam(args.wrapLamination ?? args.lamination ?? "none")}`;
 
   const headerLines: string[] = [];
   headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
@@ -400,6 +403,10 @@ export default async function generateManagerQuote(args: Args) {
   const innerWrap = (args.boxType === "lidBottom" || args.boxType === "casket") ? args.wrapPaper : "none";
   headerLines.push(`Футеровка: ${mapWrap(innerWrap)}`);
   headerLines.push(`Печать: ${args.print === "fullWrap" ? "Полноцвет (вся площадь)" : "Только логотипы"}`);
+
+  if (args.print === "fullWrap" && args.fullWrapFileName) {
+    headerLines.push(`Макет полноцвета: ${args.fullWrapFileName}`);
+  }
 
   const wrapToCol = (txt: string) => doc.splitTextToSize(txt, (PAGE.W - 2*M - (PDF_LAYOUT.colGap ?? 8))/2);
   for (const L of headerLines) {

@@ -57,6 +57,11 @@ type BoxStore = {
   boxType: BoxType;
   selectedSide: BoxSide;
 
+  print: "logosOnly" | "fullWrap";
+  fullWrapArtwork: { dataUrl: string; name: string } | null;
+  setPrint: (print: "logosOnly" | "fullWrap") => void;
+  setFullWrapArtwork: (artwork: { dataUrl: string; name: string } | null) => void;
+
   // 🖼️ Логотипы
   logos: Record<BoxSide, LogoData>;
 
@@ -126,6 +131,11 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
   insertColor: "#8B4000",
   boxType: "vCutHex",
   selectedSide: "front",
+
+  print: "logosOnly",
+  fullWrapArtwork: null,
+  setPrint: (print) => set({ print }),
+  setFullWrapArtwork: (fullWrapArtwork) => set({ fullWrapArtwork }),
 
   logos: makeDefaultLogos(),
   previewDataUrl: null,

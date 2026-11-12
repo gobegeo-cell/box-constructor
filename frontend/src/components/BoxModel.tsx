@@ -26,6 +26,24 @@ export default function BoxModel() {
 
   // === выбор модели по типу
   const boxType = useBoxStore((s) => s.boxType);
+  const print = useBoxStore((s) => s.print);
+  const artwork = useBoxStore((s) => s.fullWrapArtwork);
+  const [wrapTexture, setWrapTexture] = useState<THREE.Texture | null>(null);
+
+  useEffect(() => {
+    if (print !== "fullWrap" || !artwork) { setWrapTexture(null); return; }
+    let cancelled = false;
+    setWrapTexture(null);
+    const texture = new THREE.TextureLoader().load(artwork.dataUrl, (loaded) => {
+      if (cancelled) return;
+      loaded.flipY = false;
+      loaded.colorSpace = THREE.SRGBColorSpace;
+      loaded.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+      loaded.needsUpdate = true;
+      setWrapTexture(loaded);
+    });
+    return () => { cancelled = true; texture.dispose(); };
+  }, [print, artwork, gl]);
 
   const modelMap: Record<string, string> = {
     lidBottom: "nike_shoe_box.glb",
@@ -64,8 +82,6 @@ export default function BoxModel() {
       root.traverse((obj: any) => {
         if (obj.geometry) obj.geometry.dispose?.();
         if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m) => m?.map?.dispose?.());
-          else obj.material.map?.dispose?.();
           if (Array.isArray(obj.material)) obj.material.forEach((m) => m?.dispose?.());
           else obj.material?.dispose?.();
         }
@@ -154,7 +170,10 @@ export default function BoxModel() {
       // клонируем материалы (чтобы не делиться с кешем)
       cloned.traverse((o: AnyObj) => {
         if (o.isMesh && o.material) {
-          o.material = o.material.clone();
+          (o as THREE.Mesh).geometry = (o as THREE.Mesh).geometry.clone();
+          o.material = Array.isArray(o.material)
+            ? o.material.map((m: THREE.Material) => m.clone())
+            : o.material.clone();
           o.castShadow = o.receiveShadow = true;
         }
       });
@@ -313,15 +332,12 @@ export default function BoxModel() {
       return sideIndexByPosition(o);
     };
 
-    const paint = (m: any, hex: string) => {
+    const paint = (m: any, hex: string, texture: THREE.Texture | null = null) => {
       const one = (mat: any) => {
         if (!mat) return;
-        if (mat.map) {
-          mat.map.dispose?.();
-          mat.map = null;
-        }
+        mat.map = texture;
         mat.vertexColors = false;
-        mat.color?.set?.(hex);
+        mat.color?.set?.(texture ? "#ffffff" : hex);
         mat.needsUpdate = true;
       };
       Array.isArray(m) ? m.forEach(one) : one(m);
@@ -341,9 +357,9 @@ export default function BoxModel() {
       }
 
       const idx = getSideIndex(o, matName);
-      paint(material, colors[idx] ?? fallback);
+      paint(material, colors[idx] ?? fallback, print === "fullWrap" ? wrapTexture : null);
     });
-  }, [localScene, sideColors, color, insertColor]);
+  }, [localScene, sideColors, color, insertColor, print, wrapTexture]);
 
   // ===== Кнопка крышки: проигрываем все релевантные клипы
   const toggleLid = () => {

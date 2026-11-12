@@ -1,5 +1,6 @@
 // src/components/PriceEstimator.tsx — мгновенное скачивание PDF на ПК + фоновая отправка менеджеру
 import React, { useMemo, useState, useEffect } from "react";
+import FullWrapUploader from "./FullWrapUploader";
 import generateClientQuote from "../pdf/clientQuote";
 import generateManagerQuote from "../pdf/managerQuote";
 import { useBoxStore } from "../store/useBoxStore";
@@ -169,7 +170,9 @@ export default function PriceEstimator() {
   const currency = "₽";
 
   // печать / отделка
-  const [print, setPrint] = useState<"logosOnly" | "fullWrap">("logosOnly");
+  const print = useBoxStore((s) => s.print);
+  const setPrint = useBoxStore((s) => s.setPrint);
+  const fullWrapArtwork = useBoxStore((s) => s.fullWrapArtwork);
   const [finBlind, setFinBlind] = useState(false);
   const [finFoil, setFinFoil] = useState(false);
   const [finUV, setFinUV] = useState(false);
@@ -292,6 +295,10 @@ function generatePDF() {
       depthMM: Number(depth) || 0,
       quantity: Math.max(1, Number(quantity) || 1),
       baseBoard, wrapPaper, print,
+      lamination: lamDisabled ? "none" as const : lamValue,
+      wrapLamination: lamDisabled ? "none" as const : lamValue,
+      fullWrapFileName: print === "fullWrap" ? fullWrapArtwork?.name : undefined,
+      innerMode, drawerSleeveInner, lidLong,
       finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
       sideColors, logos,
     };
@@ -310,14 +317,7 @@ function generatePDF() {
         try {
           console.log("[TZ] manager: generating…");
           const managerBlob = await generateManagerQuote({
-            boxType,
-            widthMM: Number(width) || 0,
-            heightMM: Number(height) || 0,
-            depthMM: Number(depth) || 0,
-            quantity: Math.max(1, Number(quantity) || 1),
-            baseBoard, wrapPaper, print,
-            finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
-            sideColors, logos,
+            ...metaCommon,
             pricing,
             promoCode: promoClean || undefined,
           });
@@ -330,6 +330,9 @@ function generatePDF() {
             depth: Number(depth) || 0,
             quantity: Math.max(1, Number(quantity) || 1),
             baseBoard, wrapPaper, print,
+            lamination: metaCommon.lamination,
+            wrapLamination: metaCommon.wrapLamination,
+            fullWrapFileName: metaCommon.fullWrapFileName,
             promo: promoClean || undefined,
           });
           console.log("[TZ] manager: sent OK");
@@ -415,6 +418,7 @@ function generatePDF() {
           <option value="fullWrap">Полноцвет</option>
         </select>
       </div>
+      {print === "fullWrap" && <FullWrapUploader />}
       <div style={{ display: "flex", gap: 14, alignItems: "center", margin: "6px 0", flexWrap: "wrap" }}>
         <label>Отделка</label>
         <label><input type="checkbox" checked={finBlind} onChange={(e) => setFinBlind(e.currentTarget.checked)} /> Слепое тиснение (клише)</label>
