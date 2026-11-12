@@ -407,7 +407,7 @@ export default async function generateManagerQuote(args: Args) {
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
-  const innerWrap = (args.boxType === "lidBottom" || (args.boxType === "casket" || args.boxType === "casketSlider")) ? args.wrapPaper : "none";
+  const innerWrap = (args.boxType === "lidBottom" || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else if (args.boxType === "drawer") {
@@ -543,10 +543,10 @@ export default async function generateManagerQuote(args: Args) {
       wrapPaper: args.wrapPaper,
       print: args.print,
       finishing: args.finishing,
-      ...((args.boxType === "casket" || args.boxType === "casketSlider")
+      ...((args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap")
         ? { wrapLamination: (args as any).wrapLamination ?? "none" }
         : { lamination: (args as any).lamination ?? "none" }),
-      innerPaper: (args.boxType === "lidBottom" || (args.boxType === "casket" || args.boxType === "casketSlider"))
+      innerPaper: (args.boxType === "lidBottom" || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap"))
         ? (args as any).wrapPaper : "none",
       innerMode: (args as any).innerMode ?? "none",
       drawerSleeveInner: (args as any).drawerSleeveInner ?? false,

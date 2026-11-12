@@ -200,22 +200,22 @@ export default function PriceEstimator() {
   // ламинация
   const lamDisabled = wrapPaper === "designer_120";
   const lamRequired = wrapPaper === "offset_150" || wrapPaper === "coated_150";
-  const lamValue = (boxType === "casket" || boxType === "casketSlider") ? wrapLam : lamination;
+  const lamValue = (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapLam : lamination;
   const setLamValue = (v: "none" | "matt" | "gloss") =>
-    (boxType === "casket" || boxType === "casketSlider") ? setWrapLam(v) : setLamination(v);
+    (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? setWrapLam(v) : setLamination(v);
 
   useEffect(() => {
     if (lamDisabled) {
-      (boxType === "casket" || boxType === "casketSlider") ? setWrapLam("none") : setLamination("none");
+      (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? setWrapLam("none") : setLamination("none");
     } else if (lamRequired) {
-      (boxType === "casket" || boxType === "casketSlider")
+      (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap")
         ? wrapLam === "none" && setWrapLam("matt")
         : lamination === "none" && setLamination("matt");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapPaper, boxType]);
 
-  const innerPaperAuto = boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider") ? wrapPaper : "none";
+  const innerPaperAuto = boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapPaper : "none";
 
   // inputs
   const inputs = useMemo(() => {
@@ -230,7 +230,7 @@ export default function PriceEstimator() {
       finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
       logosMeta,
     };
-    const lamObj = (boxType === "casket" || boxType === "casketSlider")
+    const lamObj = (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap")
       ? { wrapLamination: lamDisabled ? "none" : wrapLam || (lamRequired ? "matt" : "none") }
       : { lamination: lamDisabled ? "none" : lamination || (lamRequired ? "matt" : "none") };
     const lidLongObj = boxType === "lidBottom" ? { lidLong: !!lidLong } : {};

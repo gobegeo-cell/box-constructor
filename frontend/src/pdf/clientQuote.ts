@@ -394,7 +394,7 @@ export default async function generateClientQuote(args: Args) {
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
-  const innerWrap = (args.boxType === "lidBottom" || (args.boxType === "casket" || args.boxType === "casketSlider")) ? args.wrapPaper : "none";
+  const innerWrap = (args.boxType === "lidBottom" || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else if (args.boxType === "drawer") {

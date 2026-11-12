@@ -1,7 +1,7 @@
 /* =========================
    ТИПЫ ВХОДА/ВЫХОДА
    ========================= */
-export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "hex";
+export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "casketCounterFlap" | "hex";
 type Lam = "none" | "matt" | "gloss";
 type PrintMode = "logosOnly" | "fullWrap";
 
@@ -300,7 +300,7 @@ export function estimateCost(i: CostInputs) {
     sleeveInnerSheets: 0,
   };
 
-  if (i.boxType === "casket" || i.boxType === "casketSlider") {
+  if (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap") {
     const { boardSheets, wrapSheets: wrapSheetsOuter, innerLidSheets, innerBottomSheets, layouts } =
       sheetsForCasketByLayouts(W, H, D, qty);
 
@@ -458,7 +458,7 @@ export function estimateCost(i: CostInputs) {
   /* ---------- ЛАМИНАЦИЯ ---------- */
   let laminationCost = 0;
   if (i.wrapPaper !== "designer_120") {
-    let lam: Lam = (i.boxType === "casket" || i.boxType === "casketSlider") ? (i.wrapLamination ?? "none") : (i.lamination ?? "none");
+    let lam: Lam = (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap") ? (i.wrapLamination ?? "none") : (i.lamination ?? "none");
     if (lam === "none") lam = "matt"; // обязательна при 150 г/м²
     laminationCost = RATES.lamination[lam] * areaLamM2;
   }
