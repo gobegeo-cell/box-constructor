@@ -1,3 +1,4 @@
+import { drawManualOffer, type ManualOffer } from "./manualOffer";
 import { CLICHE_CM2_RATE } from "../lib/costing";
 import { tierGeometry, type TierSettings } from "../lib/tierGeometry";
 import { getCanvasSnapshot } from "./canvasSnapshot";
@@ -265,6 +266,7 @@ async function extractLogosMeta(
 /* ====== Типы аргументов ====== */
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
+  manualOffer?: ManualOffer;
   boxType: string;
   vCutInsert?: { widthMM: number; heightMM: number; depthMM: number };
   tiers?: TierSettings;
@@ -501,6 +503,7 @@ export default async function generateManagerQuote(args: Args) {
         head: [["№", "Сторона", "Размер (мм)", "Площадь (см²)", "Процессы", ...(clicheProcesses ? ["Клише (руб.)"] : [])]],
         foot: clicheProcesses ? [[{ content: `Клише: ${clicheArea.toFixed(1)} см² × ${CLICHE_CM2_RATE} руб./см². Разово на тираж.`, colSpan: 5 }, String(clicheTotal)]] : [],
         showFoot: "lastPage",
+        tableWidth: clicheProcesses ? 160 : 130,
         footStyles: { fillColor: [245, 245, 245], textColor: 0, fontStyle: "normal" },
         body,
         styles:     { font: "NotoSans", fontSize: 9.5, cellPadding: 2 },
@@ -522,9 +525,13 @@ export default async function generateManagerQuote(args: Args) {
     }
   }
 
+  drawManualOffer(doc, args.manualOffer, args.quantity,
+    Math.max((doc as any).lastAutoTable?.finalY ?? 0, GRID.colors.y + 22, ry) + 10, M);
+
   /* ====== СОГЛАСОВАНИЕ ====== */
   {
-    const y = ((doc as any).lastAutoTable?.finalY ?? (GRID.colors.y + 22)) + 70;
+    let y = Math.max((doc as any).lastAutoTable?.finalY ?? 0, GRID.colors.y + 22, ry) + 12;
+    if (y + 27 > PAGE.H - 16) { doc.addPage(); y = M + 6; }
     setBold(); doc.setFontSize(11); doc.setTextColor(0);
     doc.text("Согласование", M, y);
 
@@ -586,8 +593,10 @@ export default async function generateManagerQuote(args: Args) {
     // 2) Безопасный старт НИЖЕ клише/таблиц
     const MARGIN = (typeof PDF_LAYOUT !== "undefined" && PDF_LAYOUT?.margin) ? PDF_LAYOUT.margin : 10;
     const pageH  = doc.internal.pageSize.getHeight();
-    let y = ((doc as any).lastAutoTable?.finalY || 0) + 8;
-    try { /* @ts-ignore */ if (typeof ry === "number" && isFinite(ry)) y = Math.max(y, ry + 8); } catch {}
+    doc.addPage();
+    let y = MARGIN + 10;
+    doc.setFont("NotoSans", "bold"); doc.setFontSize(12);
+    doc.text("Внутренний расчёт", MARGIN, y); y += 10;
     if (!Number.isFinite(y) || y < MARGIN + 10) y = MARGIN + 10;
 
     // Перенос страницы при риске переполнения

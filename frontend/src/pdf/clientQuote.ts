@@ -1,3 +1,4 @@
+import { drawManualOffer, type ManualOffer } from "./manualOffer";
 import { CLICHE_CM2_RATE } from "../lib/costing";
 import { tierGeometry, type TierSettings } from "../lib/tierGeometry";
 import { getCanvasSnapshot } from "./canvasSnapshot";
@@ -264,6 +265,7 @@ async function extractLogosMeta(
 /* ====== Типы аргументов ====== */
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
+  manualOffer?: ManualOffer;
   boxType: string;
   vCutInsert?: { widthMM: number; heightMM: number; depthMM: number };
   tiers?: TierSettings;
@@ -488,6 +490,7 @@ export default async function generateClientQuote(args: Args) {
         head: [["№", "Сторона", "Размер (мм)", "Площадь (см²)", "Процессы", ...(clicheProcesses ? ["Клише (руб.)"] : [])]],
         foot: clicheProcesses ? [[{ content: `Клише: ${clicheArea.toFixed(1)} см² × ${CLICHE_CM2_RATE} руб./см². Разово на тираж.`, colSpan: 5 }, String(clicheTotal)]] : [],
         showFoot: "lastPage",
+        tableWidth: clicheProcesses ? 160 : 130,
         footStyles: { fillColor: [245, 245, 245], textColor: 0, fontStyle: "normal" },
         body,
         styles:     { font: "NotoSans", fontSize: 9.5, cellPadding: 2 },
@@ -508,6 +511,9 @@ export default async function generateClientQuote(args: Args) {
       });
     }
   }
+
+  drawManualOffer(doc, args.manualOffer, args.quantity,
+    Math.max((doc as any).lastAutoTable?.finalY ?? 0, GRID.colors.y + 22, ry) + 10, M);
 
   /* ====== СОГЛАСОВАНИЕ ====== */
   {

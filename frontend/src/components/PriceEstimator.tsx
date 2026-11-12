@@ -1,3 +1,4 @@
+import { isGeoCode, validateOffer, offerAmounts, type ManualOffer } from "../pdf/manualOffer";
 // src/components/PriceEstimator.tsx — мгновенное скачивание PDF на ПК + фоновая отправка менеджеру
 import React, { useMemo, useState, useEffect } from "react";
 import FullWrapUploader from "./FullWrapUploader";
@@ -197,6 +198,45 @@ export default function PriceEstimator() {
   // промокод
   const [promo, setPromo] = useState<string>("");
 
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [manualOffer, setManualOffer] = useState<ManualOffer | undefined>();
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerBasis, setOfferBasis] = useState<"unit" | "total">("unit");
+  const [offerShipment, setOfferShipment] = useState("");
+  const [offerSignature, setOfferSignature] = useState(() => {
+    try { return localStorage.getItem("pchelkin-manager-signature") || ""; } catch { return ""; }
+  });
+  const [offerError, setOfferError] = useState("");
+
+  async function loadOfferSignature(file?: File) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 2 * 1024 * 1024) {
+      setOfferError("Выбери PNG или JPG размером до 2 МБ."); return;
+    }
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const image = new Image(); image.onload = () => resolve(); image.onerror = reject; image.src = dataUrl;
+      });
+      setOfferSignature(dataUrl); setOfferError("");
+    } catch { setOfferError("Не удалось прочитать изображение подписи."); }
+  }
+
+  function saveManualOffer() {
+    const offer: ManualOffer = {
+      price: Number(offerPrice.replace(",", ".")), priceBasis: offerBasis,
+      shipment: offerShipment.trim(), signatureDataUrl: offerSignature,
+    };
+    if (!validateOffer(offer)) { setOfferError("Укажи цену больше нуля, срок отгрузки и выбери подпись."); return; }
+    try { localStorage.setItem("pchelkin-manager-signature", offer.signatureDataUrl); } catch {}
+    setManualOffer(offer); setOfferOpen(false); setOfferError("");
+  }
+
   // занятость (защита от дабл-кликов)
   const [isBusy, setIsBusy] = useState(false);
 
@@ -297,6 +337,7 @@ export default function PriceEstimator() {
 function generatePDF() {
   try {
     const metaCommon = {
+      manualOffer: isGeoCode(promo) ? manualOffer : undefined,
       boxType,
       tiers: boxType === "tierCasket" ? tiers : undefined,
       vCutInsert: (boxType === "vCutHex" || boxType === "angledHex") && vCutInsertEnabled ? vCutInsert : undefined,
@@ -315,7 +356,7 @@ function generatePDF() {
     };
 
     const promoClean = (typeof promo === "string" && promo.trim())
-      ? promo.trim().toUpperCase()
+      ? (isGeoCode(promo) ? "GEO" : promo.trim().toUpperCase())
       : "";
 
     // 1) СКАЧИВАНИЕ КЛИЕНТСКОГО PDF — СРАЗУ (не ждём)
@@ -363,7 +404,7 @@ function generatePDF() {
   const isAppDown = typeof navigator !== "undefined" ? !navigator.onLine : false; // оффлайн: шапку прячем
 
   // нижняя часть скрыта до ввода кода (или Geo)
-  const codeLocalBypass = (promo || "").trim().toUpperCase() === "GEO";
+  const codeLocalBypass = isGeoCode(promo);
   const checkedCode = useUiStore((s) => s.accessCode);
   const typedCode = promo.trim().toUpperCase();
   const canRevealBottom = typedCode !== "ЯПРОМКОД" && typedCode !== "G" &&
@@ -446,13 +487,19 @@ function generatePDF() {
         <input
           placeholder="Промокод"
           value={promo}
-          onChange={(e) => setPromo(e.currentTarget.value)}
+          onChange={(e) => {
+            const next = e.currentTarget.value; setPromo(next);
+            if (!isGeoCode(next)) { setManualOffer(undefined); setOfferOpen(false); }
+          }}
           style={{ padding: "6px 8px", border: "1px solid #ddd", borderRadius: 8, minWidth: 160 }}
         />
         <button
           type="button"
           disabled={!promo.trim() || isChecking}
-          onClick={() => checkAccessCode(promo.trim())}
+          onClick={() => {
+            if (isGeoCode(promo)) { setOfferError(""); setOfferOpen(true); }
+            else checkAccessCode(promo.trim());
+          }}
           style={{ padding: "8px 12px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: isChecking ? "wait" : "pointer", opacity: !promo.trim() || isChecking ? 0.6 : 1 }}
         >
           {isChecking ? "Проверяю…" : "Открыть"}
@@ -460,12 +507,55 @@ function generatePDF() {
         <button
           type="button"
           disabled={isChecking}
-          onClick={() => { setPromo(""); resetAccess(); }}
+          onClick={() => { setPromo(""); resetAccess(); setManualOffer(undefined); setOfferOpen(false); }}
           style={{ padding: "8px 12px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: isChecking ? "not-allowed" : "pointer", opacity: isChecking ? 0.6 : 1 }}
         >
           Сброс
         </button>
       </div>
+
+
+      {codeLocalBypass && (
+        <div style={{ marginTop: 12 }}>
+          <button type="button" onClick={() => setOfferOpen(true)}>Цена, отгрузка и подпись для ТЗ</button>
+          {manualOffer && <div>
+            В ТЗ: {fmtCur(offerAmounts(manualOffer, quantity).total, "₽")} за тираж.
+            Отгрузка: {manualOffer.shipment}.
+            <button type="button" onClick={() => setManualOffer(undefined)}>Убрать из ТЗ</button>
+          </div>}
+        </div>
+      )}
+      {codeLocalBypass && offerOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onKeyDown={(e) => { if (e.key === "Escape") setOfferOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="offer-title"
+            style={{ background: "#fff", color: "#111", borderRadius: 12, padding: 20, width: 440, maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", display: "grid", gap: 12 }}>
+            <h3 id="offer-title" style={{ margin: 0 }}>Цена и отгрузка для ТЗ</h3>
+            <label>Цена, ₽
+              <input autoFocus type="text" inputMode="decimal" value={offerPrice} onChange={(e) => setOfferPrice(e.currentTarget.value)} style={{ display: "block", width: "100%" }} />
+            </label>
+            <label>Цена указана
+              <select value={offerBasis} onChange={(e) => setOfferBasis(e.currentTarget.value as "unit" | "total")}>
+                <option value="unit">За штуку</option><option value="total">За весь тираж</option>
+              </select>
+            </label>
+            <label>Срок отгрузки
+              <input value={offerShipment} maxLength={180} placeholder="Например: 25 ноября или 10 рабочих дней"
+                onChange={(e) => setOfferShipment(e.currentTarget.value)} style={{ display: "block", width: "100%" }} />
+            </label>
+            <label>Подпись исполнителя (PNG или JPG)
+              <input type="file" accept="image/png,image/jpeg" onChange={(e) => void loadOfferSignature(e.currentTarget.files?.[0])} />
+            </label>
+            {offerSignature && <img src={offerSignature} alt="Подпись исполнителя" style={{ width: "100%", maxHeight: 100, objectFit: "contain", background: "#fff" }} />}
+            <small>Подпись сохраняется в этом браузере и добавляется в ТЗ вместе с указанными условиями.</small>
+            {offerError && <div role="alert" style={{ color: "#b91c1c" }}>{offerError}</div>}
+            <div style={{ display: "flex", gap: 12 }}>
+              <button type="button" onClick={saveManualOffer}>Сохранить для ТЗ</button>
+              <button type="button" onClick={() => setOfferOpen(false)}>Отмена</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* НИЖНЯЯ ЧАСТЬ: видна только при валидном коде */}
       {canRevealBottom ? (
