@@ -1,7 +1,7 @@
 /* =========================
    ТИПЫ ВХОДА/ВЫХОДА
    ========================= */
-export type BoxType = "casket" | "lidBottom" | "drawer" | "hex";
+export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "hex";
 type Lam = "none" | "matt" | "gloss";
 type PrintMode = "logosOnly" | "fullWrap";
 
@@ -261,8 +261,26 @@ function drawerLayoutsPrecise(W:number, H:number, D:number, clearance:number) {
     sleeve: { board:{w:sleeveDieW,h:sleeveDieH}, wrap:{w:sleeveWrapW,h:sleeveWrapH}, inner:{w:sleeveInnerW,h:sleeveInnerH} }
   };
 }
-function sheetsForDrawerPrecise(W:number,H:number,D:number,qty:number, clearance:number) {
-  const L = drawerLayoutsPrecise(W,H,D,clearance);
+// Production layout for the casket slider; W × D footprint, H tray height.
+function casketSliderLayouts(W:number, H:number, D:number) {
+  const tray = lidBottomLayoutsPrecise(W, H, D, 40, LID_CLEARANCE_MM_DEFAULT).base;
+  const panelW = W + 6;
+  const panelD = D + 5;
+  const sideH = H + 5;
+  const coreW = panelD + 2 * sideH;
+  const coreH = 2 * panelW + sideH;
+  return {
+    tray,
+    sleeve: {
+      board: { w: coreW + 10, h: coreH + 10 },
+      wrap: { w: coreW + 30, h: coreH + 30 },
+      inner: { w: coreW + 10, h: coreH + 10 },
+    },
+  };
+}
+
+function sheetsForDrawerPrecise(W:number,H:number,D:number,qty:number, clearance:number, slider = false) {
+  const L = slider ? casketSliderLayouts(W,H,D) : drawerLayoutsPrecise(W,H,D,clearance);
   const trayBoard   = packOnSheet(L.tray.board.w,   L.tray.board.h,   qty);
   const trayWrap    = packOnSheet(L.tray.wrap.w,    L.tray.wrap.h,    qty);
   const trayInner   = packOnSheet(L.tray.inner.w,   L.tray.inner.h,   qty);
@@ -372,9 +390,9 @@ export function estimateCost(i: CostInputs) {
     areaLamM2   = perUnitWrapAreaM2 * qty;
     areaLogosM2 = (i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0);
 
-  } else if (i.boxType === "drawer") {
+  } else if (i.boxType === "drawer" || i.boxType === "casketSlider") {
     const clearance = Math.max(0, Number(i.lidClearanceMM ?? LID_CLEARANCE_MM_DEFAULT));
-    const S = sheetsForDrawerPrecise(W, H, D, qty, clearance);
+    const S = sheetsForDrawerPrecise(W, H, D, qty, clearance, i.boxType === "casketSlider");
 
     const addTrayInner   = (i.innerMode ?? "none") === "bottom";
     const addSleeveInner = !!i.drawerSleeveInner;
