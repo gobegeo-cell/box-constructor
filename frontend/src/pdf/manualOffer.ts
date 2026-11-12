@@ -27,25 +27,23 @@ export function drawManualOffer(doc: jsPDF, offer: ManualOffer | undefined, quan
   if (!offer || !validateOffer(offer)) return;
   const money = (n: number) => n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const { total, unit } = offerAmounts(offer, quantity);
-  const image = doc.getImageProperties(offer.signatureDataUrl);
   autoTable(doc, {
     startY, margin: { left: margin, right: margin },
-    head: [["Цена и срок отгрузки", "Подпись исполнителя"]],
+    head: [["Цена и срок отгрузки"]],
     body: [[
       "Цена за штуку: " + money(unit) + " руб.\nСтоимость тиража: " + money(total) + " руб.\nСрок отгрузки: " + offer.shipment.trim(),
-      "",
     ]],
-    styles: { font: "NotoSans", fontSize: 10, cellPadding: 3, minCellHeight: 30 },
+    styles: { font: "NotoSans", fontSize: 10, cellPadding: 3, minCellHeight: 22 },
     headStyles: { fillColor: [206, 94, 12], textColor: 255, minCellHeight: 8 },
-    columnStyles: { 1: { cellWidth: 65 } },
     rowPageBreak: "avoid",
-    didDrawCell: (data) => {
-      if (data.section !== "body" || data.column.index !== 1) return;
-      const maxW = data.cell.width - 6;
-      const maxH = data.cell.height - 6;
-      const scale = Math.min(maxW / image.width, maxH / image.height);
-      const w = image.width * scale, h = image.height * scale;
-      doc.addImage(offer.signatureDataUrl, image.fileType, data.cell.x + (data.cell.width - w) / 2, data.cell.y + (data.cell.height - h) / 2, w, h);
-    },
+
   });
+}
+
+export function drawExecutorSignature(doc: jsPDF, offer: ManualOffer | undefined, x: number, y: number, width: number) {
+  if (!offer || !validateOffer(offer)) return false;
+  const image = doc.getImageProperties(offer.signatureDataUrl);
+  const scale = Math.min(width / image.width, 16 / image.height);
+  doc.addImage(offer.signatureDataUrl, image.fileType, x, y, image.width * scale, image.height * scale);
+  return true;
 }

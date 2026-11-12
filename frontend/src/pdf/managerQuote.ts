@@ -1,4 +1,4 @@
-import { drawManualOffer, type ManualOffer } from "./manualOffer";
+import { drawManualOffer, drawExecutorSignature, type ManualOffer } from "./manualOffer";
 import { CLICHE_CM2_RATE } from "../lib/costing";
 import { tierGeometry, type TierSettings } from "../lib/tierGeometry";
 import { getCanvasSnapshot } from "./canvasSnapshot";
@@ -267,6 +267,7 @@ async function extractLogosMeta(
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
   manualOffer?: ManualOffer;
+  logosMeta?: { side: string; wMM: number; hMM: number }[];
   designerPaperName?: string;
   foilColor?: string;
   boxType: string;
@@ -405,6 +406,11 @@ export default async function generateManagerQuote(args: Args) {
   if (args.finishing?.foilStamp) processes.push("Тиснение фольгой");
   if (args.finishing?.spotUV) processes.push("УФ-лак");
 
+  const logoDims = { W: Number(args.widthMM) || 0, H: Number(args.heightMM) || 0, D: Number(args.depthMM) || 0 };
+  const quoteLogos = args.logosMeta ?? await extractLogosMeta(args.logos || {}, logoDims, args.boxType);
+  const stampingCount = Number(!!args.finishing?.blindEmboss) + Number(!!args.finishing?.foilStamp);
+  const plateArea = quoteLogos.reduce((sum, r) => sum + Math.max(0, r.wMM) * Math.max(0, r.hMM) / 100 * stampingCount, 0);
+  const plateCost = quoteLogos.reduce((sum, r) => sum + Math.round(Math.max(0, r.wMM) * Math.max(0, r.hMM) / 100 * CLICHE_CM2_RATE * stampingCount), 0);
   const headerLines: string[] = [];
   headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
   const tier = args.boxType === "tierCasket" ? tierGeometry(args.tiers) : null;
@@ -430,6 +436,12 @@ export default async function generateManagerQuote(args: Args) {
   if (selectedLam !== "none") headerLines.push(`Ламинация: ${mapLam(selectedLam)}`);
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
+  if (stampingCount) {
+    headerLines.push(plateArea > 0
+      ? `Расчёт клише: ${plateArea.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} см² × ${CLICHE_CM2_RATE} руб./см²`
+      : "Клише: укажите размеры логотипа для расчёта");
+    if (plateArea > 0) headerLines.push(`Стоимость клише: ${plateCost.toLocaleString("ru-RU")} руб. (разово на тираж)`);
+  }
   if (args.finishing?.foilStamp && args.foilColor?.trim()) headerLines.push(`Цвет фольги: ${args.foilColor.trim().slice(0, 120)}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
   const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || (args.boxType === "vCutHex" || args.boxType === "angledHex")) || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap" || args.boxType === "tierCasket")) ? args.wrapPaper : "none";
@@ -482,7 +494,7 @@ export default async function generateManagerQuote(args: Args) {
   /* ====== РАЗМЕРЫ ЛОГОТИПОВ И КЛИШЕ ====== */
   if (PDF_SECTIONS.clicheTable) {
     const dims = { W: Number(args.widthMM) || 0, H: Number(args.heightMM) || 0, D: Number(args.depthMM) || 0 };
-    const logosMeta = await extractLogosMeta(args.logos || {}, dims, args.boxType);
+    const logosMeta = quoteLogos;
 
     if (logosMeta.length > 0) {
       const afterColorsY = (doc as any).lastAutoTable?.finalY ?? (GRID.colors.y + 22);
@@ -505,7 +517,6 @@ export default async function generateManagerQuote(args: Args) {
       autoTable(doc, {
         startY,
         head: [["№", "Сторона", "Размер (мм)", "Площадь (см²)", "Процессы", ...(clicheProcesses ? ["Клише (руб.)"] : [])]],
-        foot: clicheProcesses ? [[{ content: `Клише: ${clicheArea.toFixed(1)} см² × ${CLICHE_CM2_RATE} руб./см². Разово на тираж.`, colSpan: 5 }, String(clicheTotal)]] : [],
         showFoot: "lastPage",
         tableWidth: clicheProcesses ? 160 : 130,
         footStyles: { fillColor: [245, 245, 245], textColor: 0, fontStyle: "normal" },
@@ -547,7 +558,10 @@ export default async function generateManagerQuote(args: Args) {
 
     setNormal(); doc.setFontSize(10);
     doc.text("Заказчик: ____________________", M + 4,  boxTop + 7);
-    doc.text("Исполнитель: ________________", M + 110, boxTop + 7);
+    doc.text("Исполнитель:", M + 110, boxTop + 7);
+    if (!drawExecutorSignature(doc, args.manualOffer, M + 142, boxTop + 1, PAGE.W - 2 * M - 146)) {
+      doc.text("________________", M + 142, boxTop + 7);
+    }
     doc.text("Дата: _________", M + 4,  boxTop + 15);
     doc.text("Подпись: ______", M + 60, boxTop + 15);
   }

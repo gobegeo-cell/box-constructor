@@ -363,6 +363,7 @@ function generatePDF() {
       innerMode, drawerSleeveInner, lidLong,
       finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
       sideColors, logos,
+      logosMeta: extractLogosMeta(logos, { W: Number(width) || 0, H: Number(height) || 0, D: Number(depth) || 0 }, String(boxType || "")),
     };
 
     const promoClean = (typeof promo === "string" && promo.trim())
