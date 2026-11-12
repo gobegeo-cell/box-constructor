@@ -267,6 +267,7 @@ async function extractLogosMeta(
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
   manualOffer?: ManualOffer;
+  specificationNumber?: string;
   logosMeta?: { side: string; wMM: number; hMM: number }[];
   designerPaperName?: string;
   foilColor?: string;
@@ -316,6 +317,12 @@ export default async function generateManagerQuote(args: Args) {
   doc.text(PDF_TEXT.title, GRID.headLeft.x, GRID.headLeft.y);
   setNormal(); doc.setFontSize(PDF_TEXT.subtitleSize ?? 9.5); doc.setTextColor(100);
   doc.text(PDF_TEXT.subtitle, GRID.headLeft.x, GRID.headLeft.y + 5.5);
+  const specificationNumber = args.specificationNumber?.trim().slice(0, 32);
+  if (specificationNumber) {
+    setBold(); doc.setFontSize(10); doc.setTextColor(0);
+    doc.text(`ТЗ № ${specificationNumber}`, GRID.headLeft.x, GRID.headLeft.y + 9);
+    setNormal();
+  }
 
   // Логотип
   const logoData = await fetchImageAsDataURL(PDF_BRAND.logoUrl);

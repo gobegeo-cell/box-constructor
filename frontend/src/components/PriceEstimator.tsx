@@ -205,9 +205,10 @@ export default function PriceEstimator() {
   const [offerPrice, setOfferPrice] = useState("");
   const [offerBasis, setOfferBasis] = useState<"unit" | "total">("unit");
   const [offerShipment, setOfferShipment] = useState("");
+  const [specificationNumber, setSpecificationNumber] = useState("");
   const [designerPaperName, setDesignerPaperName] = useState("");
   const [foilColor, setFoilColor] = useState("");
-  const [productionDetails, setProductionDetails] = useState<{ designerPaperName: string; foilColor: string } | undefined>();
+  const [productionDetails, setProductionDetails] = useState<{ specificationNumber: string; designerPaperName: string; foilColor: string } | undefined>();
   const [offerSignature, setOfferSignature] = useState(() => {
     try { return localStorage.getItem("pchelkin-manager-signature") || ""; } catch { return ""; }
   });
@@ -241,7 +242,7 @@ export default function PriceEstimator() {
     if (hasOffer && !validateOffer(offer)) { setOfferError("Для цены и отгрузки укажи цену больше нуля, срок и выбери подпись."); return; }
     try { localStorage.setItem("pchelkin-manager-signature", offer.signatureDataUrl); } catch {}
     setManualOffer(hasOffer ? offer : undefined);
-    setProductionDetails({ designerPaperName: designerPaperName.trim(), foilColor: foilColor.trim() });
+    setProductionDetails({ specificationNumber: specificationNumber.trim(), designerPaperName: designerPaperName.trim(), foilColor: foilColor.trim() });
     setOfferOpen(false); setOfferError("");
   }
 
@@ -346,6 +347,7 @@ function generatePDF() {
   try {
     const metaCommon = {
       manualOffer: isGeoCode(promo) ? manualOffer : undefined,
+      specificationNumber: isGeoCode(promo) ? productionDetails?.specificationNumber : undefined,
       designerPaperName: isGeoCode(promo) && wrapPaper === "designer_120" ? productionDetails?.designerPaperName : undefined,
       foilColor: isGeoCode(promo) && finFoil ? productionDetails?.foilColor : undefined,
       boxType,
@@ -535,6 +537,7 @@ function generatePDF() {
         <div style={{ marginTop: 12 }}>
           <button type="button" onClick={() => setOfferOpen(true)}>Условия и материалы для ТЗ</button>
           {productionDetails && <div>
+            {productionDetails.specificationNumber && <div>ТЗ № {productionDetails.specificationNumber}</div>}
             {wrapPaper === "designer_120" && productionDetails.designerPaperName && <div>Бумага: {productionDetails.designerPaperName}</div>}
             {finFoil && productionDetails.foilColor && <div>Фольга: {productionDetails.foilColor}</div>}
           </div>}
@@ -554,6 +557,18 @@ function generatePDF() {
           <section role="dialog" aria-modal="true" aria-labelledby="offer-title"
             style={{ background: "#fff", color: "#111", borderRadius: 12, padding: 20, width: 440, maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", display: "grid", gap: 12 }}>
             <h3 id="offer-title" style={{ margin: 0 }}>Условия и материалы для ТЗ</h3>
+            <label>Номер ТЗ
+              <input value={specificationNumber} maxLength={32} placeholder="Например: 125/26"
+                onChange={(e) => setSpecificationNumber(e.currentTarget.value)} style={{ display: "block", width: "100%" }} />
+            </label>
+            <fieldset style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10 }}>
+              <legend>Тиснение и клише</legend>
+              <label style={{ display: "block" }}><input type="checkbox" checked={finFoil} onChange={(e) => setFinFoil(e.currentTarget.checked)} /> Тиснение фольгой</label>
+              <label style={{ display: "block" }}><input type="checkbox" checked={finBlind} onChange={(e) => setFinBlind(e.currentTarget.checked)} /> Слепое тиснение</label>
+              <div>{finFoil || finBlind
+                ? `Стоимость клише: ${fmtCur(Number((out as any)?.clicheCost || 0), "₽")} — разово на тираж.`
+                : "Тиснение не выбрано — стоимость клише в ТЗ не выводится."}</div>
+            </fieldset>
             {wrapPaper === "designer_120" && <label>Название и цвет дизайнерской бумаги
               <input value={designerPaperName} maxLength={120} placeholder="Например: Перграфика, чёрная"
                 onChange={(e) => setDesignerPaperName(e.currentTarget.value)} style={{ display: "block", width: "100%" }} />
