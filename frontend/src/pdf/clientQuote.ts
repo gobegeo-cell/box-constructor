@@ -64,7 +64,7 @@ function mapLam(v: "none" | "matt" | "gloss") {
 
 function mapWrap(v: string) {
   switch (v) {
-    case "designer_120": return "Дизайнерская 120 г/м²";
+    case "designer_120": return "Дизайнерская бумага 120 г/м²";
     case "offset_150":   return "Офсетная 150 г/м²";
     case "coated_150":   return "Мелованная бумага 150 г/м²";
     case "none":         return "—";
@@ -372,16 +372,22 @@ export default async function generateClientQuote(args: Args) {
 
   const selectedLam = args.wrapPaper === "designer_120"
     ? "none" : (args.wrapLamination ?? args.lamination ?? "none");
-  const lamText = selectedLam === "none"
-    ? "без ламинации" : `${mapLam(selectedLam).toLowerCase()} ламинация`;
-  const printText = args.print === "fullWrap" ? "полноцветная печать" : "печать только логотипов";
+  const printText = args.print === "fullWrap" ? "Полноцветная печать" : "Только логотипы";
+  const processes: string[] = [];
+  if (args.finishing?.blindEmboss) processes.push("Слепое тиснение");
+  if (args.finishing?.foilStamp) processes.push("Тиснение фольгой");
+  if (args.finishing?.spotUV) processes.push("УФ-лак");
 
   const headerLines: string[] = [];
   headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
   headerLines.push(`Габариты (мм): W ${args.widthMM} × H ${args.heightMM} × D ${args.depthMM}`);
   headerLines.push(`Тираж: ${Math.max(1, Math.floor(args.quantity))} шт.`);
   headerLines.push(`Основа: ${mapBase(args.baseBoard)}`);
-  headerLines.push(`Оклейка: ${mapWrap(args.wrapPaper)}, ${printText} + ${lamText}`);
+  headerLines.push(`Оклейка: ${mapWrap(args.wrapPaper)}`);
+  if (selectedLam !== "none") headerLines.push(`Ламинация: ${mapLam(selectedLam)}`);
+  headerLines.push(`Печать: ${printText}`);
+  if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
+  if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
   const innerWrap = (args.boxType === "lidBottom" || args.boxType === "casket") ? args.wrapPaper : "none";
   headerLines.push(`Футеровка: ${mapWrap(innerWrap)}`);
 
@@ -438,7 +444,7 @@ export default async function generateClientQuote(args: Args) {
         sideRu(r.side),
         `${r.wMM} × ${r.hMM}`,
         ((r.wMM * r.hMM) / 100).toFixed(1),  // площадь см²
-        "—", // сюда можно подставлять процессы, если есть
+        processes.join(", ") || "—",
       ]));
 
       autoTable(doc, {
