@@ -1,6 +1,7 @@
+import { createPortal } from "react-dom";
 import { isGeoCode, validateOffer, offerAmounts, type ManualOffer } from "../pdf/manualOffer";
 // src/components/PriceEstimator.tsx — мгновенное скачивание PDF на ПК + фоновая отправка менеджеру
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import FullWrapUploader from "./FullWrapUploader";
 import generateClientQuote from "../pdf/clientQuote";
 import generateManagerQuote from "../pdf/managerQuote";
@@ -199,6 +200,7 @@ export default function PriceEstimator() {
   const [promo, setPromo] = useState<string>("");
 
   const [offerOpen, setOfferOpen] = useState(false);
+  const offerDialogRef = useRef<HTMLDialogElement>(null);
   const [manualOffer, setManualOffer] = useState<ManualOffer | undefined>();
   const [offerPrice, setOfferPrice] = useState("");
   const [offerBasis, setOfferBasis] = useState<"unit" | "total">("unit");
@@ -413,6 +415,11 @@ function generatePDF() {
 
   // нижняя часть скрыта до ввода кода (или Geo)
   const codeLocalBypass = isGeoCode(promo);
+  useEffect(() => {
+    const dialog = offerDialogRef.current;
+    if (codeLocalBypass && offerOpen && dialog && !dialog.open) dialog.showModal();
+    return () => { if (dialog?.open) dialog.close(); };
+  }, [codeLocalBypass, offerOpen]);
   const checkedCode = useUiStore((s) => s.accessCode);
   const typedCode = promo.trim().toUpperCase();
   const canRevealBottom = typedCode !== "ЯПРОМКОД" && typedCode !== "G" &&
@@ -537,9 +544,12 @@ function generatePDF() {
           </div>}
         </div>
       )}
-      {codeLocalBypass && offerOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-          onKeyDown={(e) => { if (e.key === "Escape") setOfferOpen(false); }}>
+      {codeLocalBypass && offerOpen && createPortal(
+        <dialog ref={offerDialogRef} data-geo-offer aria-labelledby="offer-title"
+          style={{ border: 0, padding: 0, maxWidth: "calc(100vw - 32px)", maxHeight: "calc(100dvh - 32px)", overflow: "auto", background: "transparent" }}
+          onCancel={(e) => { e.preventDefault(); setOfferOpen(false); }}
+          onKeyDown={(e) => e.stopPropagation()}>
+          <style>{`dialog[data-geo-offer]::backdrop { background: rgba(0,0,0,.45); }`}</style>
           <section role="dialog" aria-modal="true" aria-labelledby="offer-title"
             style={{ background: "#fff", color: "#111", borderRadius: 12, padding: 20, width: 440, maxWidth: "100%", maxHeight: "85vh", overflowY: "auto", display: "grid", gap: 12 }}>
             <h3 id="offer-title" style={{ margin: 0 }}>Условия и материалы для ТЗ</h3>
@@ -575,7 +585,8 @@ function generatePDF() {
               <button type="button" onClick={() => setOfferOpen(false)}>Отмена</button>
             </div>
           </section>
-        </div>
+        </dialog>,
+        document.body
       )}
 
       {/* НИЖНЯЯ ЧАСТЬ: видна только при валидном коде */}
