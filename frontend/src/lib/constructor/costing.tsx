@@ -1,7 +1,8 @@
+import { tierGeometry, type TierSettings } from "../tierGeometry";
 /* =========================
    ТИПЫ ВХОДА/ВЫХОДА
    ========================= */
-export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "casketCounterFlap" | "hex" | "hexBox" | "vCutHex";
+export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "casketCounterFlap" | "hex" | "hexBox" | "vCutHex" | "tierCasket";
 type Lam = "none" | "matt" | "gloss";
 type PrintMode = "logosOnly" | "fullWrap";
 
@@ -17,6 +18,7 @@ export type CostInputs = {
   currency?: string;
   boxType: BoxType;
   vCutInsert?: { widthMM: number; heightMM: number; depthMM: number };
+  tiers?: TierSettings;
   sliderTray?: { widthMM: number; heightMM: number; depthMM: number };
 
   // материалы
@@ -284,9 +286,10 @@ function surfaceAreaM2(W: number, H: number, D: number) {
 export function estimateCost(i: CostInputs) {
   const qty = Math.max(1, Math.floor(i.quantity || 1));
   const cur = i.currency || "₽";
-  const W = Math.max(1, +i.widthMM || 1);
-  const H = Math.max(1, +i.heightMM || 1);
-  const D = Math.max(1, +i.depthMM || 1);
+  const tier = i.boxType === "tierCasket" ? tierGeometry(i.tiers) : null;
+  const W = tier?.width ?? Math.max(1, +i.widthMM || 1);
+  const H = tier?.height ?? Math.max(1, +i.heightMM || 1);
+  const D = tier?.depth ?? Math.max(1, +i.depthMM || 1);
 
   const sheets = { board: 0, wrap: 0, inner: 0 };
   let materialCost = 0;
@@ -335,7 +338,7 @@ export function estimateCost(i: CostInputs) {
     }
     areaPrintM2 = i.print === "fullWrap" ? areaLamM2 : 0;
     areaLogosM2 = i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0;
-  } else if (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap") {
+  } else if (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap" || i.boxType === "tierCasket") {
     const { boardSheets, wrapSheets: wrapSheetsOuter, innerLidSheets, innerBottomSheets, layouts } =
       sheetsForCasketByLayouts(W, H, D, qty);
 
@@ -384,6 +387,22 @@ export function estimateCost(i: CostInputs) {
       areaLamM2 += trayWrapAreaM2;
     }
 
+    if (tier) {
+      // One shared outer casket/cover above; count each internal tray exactly once.
+      for (const t of tier.trays) {
+        const T = lidBottomLayoutsPrecise(t.widthMM, t.heightMM, t.depthMM, 40, 0).base;
+        const trayQty = qty * t.count;
+        const b = packOnSheet(T.board.w, T.board.h, trayQty).sheets;
+        const w = packOnSheet(T.wrap.w, T.wrap.h, trayQty).sheets;
+        const n = addBottom ? packOnSheet(T.inner.w, T.inner.h, trayQty).sheets : 0;
+        sheets.board += b; sheets.wrap += w; sheets.inner += n;
+        sheetsBreakdown.trayInnerSheets += n;
+        materialCost += b * boardPrice + w * wrapPrice + n * innerPrice;
+        const area = mm2ToM2(T.wrap.w, T.wrap.h) * trayQty;
+        if (i.print === "fullWrap") areaPrintM2 += area;
+        areaLamM2 += area;
+      }
+    }
   } else if (i.boxType === "lidBottom" || i.boxType === "hexBox") {
     const lidH = Math.max(1, Number(i.lidHeightMM ?? ((i as any).lidLong ? H : 40)));
     const clearance = Math.max(0, Number(i.lidClearanceMM ?? LID_CLEARANCE_MM_DEFAULT));
@@ -493,7 +512,7 @@ export function estimateCost(i: CostInputs) {
   /* ---------- ЛАМИНАЦИЯ ---------- */
   let laminationCost = 0;
   if (i.wrapPaper !== "designer_120") {
-    let lam: Lam = (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap") ? (i.wrapLamination ?? "none") : (i.lamination ?? "none");
+    let lam: Lam = (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap" || i.boxType === "tierCasket") ? (i.wrapLamination ?? "none") : (i.lamination ?? "none");
     if (lam === "none") lam = "matt"; // обязательна при 150 г/м²
     laminationCost = RATES.lamination[lam] * areaLamM2;
   }

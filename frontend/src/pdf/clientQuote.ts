@@ -1,3 +1,4 @@
+import { tierGeometry, type TierSettings } from "../lib/tierGeometry";
 import { getCanvasSnapshot } from "./canvasSnapshot";
 ﻿// src/pdf/clientQuote.ts
 import jsPDF from "jspdf";
@@ -53,6 +54,7 @@ function mapBoxTypeRu(t: string) {
     case "lidBottom": return "Крышка-дно";
     case "hexBox": return "V крышка";
     case "vCutHex": return "V-образная крышка";
+    case "tierCasket": return "Ярусная коробка";
     case "drawer": return "Пенал";
     case "hex": return "Футляр";
     case "case":
@@ -262,6 +264,7 @@ type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean;
 type Args = {
   boxType: string;
   vCutInsert?: { widthMM: number; heightMM: number; depthMM: number };
+  tiers?: TierSettings;
   sliderTray?: { widthMM: number; heightMM: number; depthMM: number };
   widthMM: number; heightMM: number; depthMM: number;
   quantity: number;
@@ -385,7 +388,13 @@ export default async function generateClientQuote(args: Args) {
 
   const headerLines: string[] = [];
   headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
-  headerLines.push(`Габариты (мм): W ${args.widthMM} × H ${args.heightMM} × D ${args.depthMM}`);
+  const tier = args.boxType === "tierCasket" ? tierGeometry(args.tiers) : null;
+  headerLines.push(`Габариты (мм): W ${tier?.width ?? args.widthMM} × H ${tier?.height ?? args.heightMM} × D ${tier?.depth ?? args.depthMM}`);
+  if (tier) {
+    tier.trays.forEach((t, index) => {
+      headerLines.push(`Ярус ${index + 1}: ${t.widthMM} × ${t.depthMM} × ${t.heightMM} мм; лотков: ${t.count}`);
+    });
+  }
   if (args.boxType === "vCutHex" && args.vCutInsert) {
     const t = args.vCutInsert;
     headerLines.push(`Вставка (мм): ${t.widthMM} × ${t.depthMM} × ${t.heightMM}`);
@@ -402,7 +411,7 @@ export default async function generateClientQuote(args: Args) {
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
-  const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || args.boxType === "vCutHex") || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap")) ? args.wrapPaper : "none";
+  const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || args.boxType === "vCutHex") || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap" || args.boxType === "tierCasket")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else if (args.boxType === "drawer") {

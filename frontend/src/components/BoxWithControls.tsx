@@ -30,6 +30,8 @@ export default function BoxWithControls() {
   const vCutInsert = useBoxStore((s) => s.vCutInsert);
   const setVCutInsert = useBoxStore((s) => s.setVCutInsert);
   const setVCutInsertEnabled = useBoxStore((s) => s.setVCutInsertEnabled);
+  const tiers = useBoxStore((s) => s.tiers);
+  const setTiers = useBoxStore((s) => s.setTiers);
   const sliderTray = useBoxStore((s) => s.sliderTray);
   const setSliderTray = useBoxStore((s) => s.setSliderTray);
   const width = useBoxStore((s) => s.width);
@@ -198,17 +200,43 @@ export default function BoxWithControls() {
         {/* Размеры */}
         <div style={card}>
           <div style={cardTitle}>Размеры (мм)</div>
-          <SizesRow
+          {boxType === "tierCasket" ? (
+            <div>{width} × {depth} × {height} мм — наружная коробка</div>
+          ) : <SizesRow
             wStore={Number(width) || DEFAULT_W}
             hStore={Number(height) || DEFAULT_H}
             dStore={Number(depth) || DEFAULT_D}
             onW={setWidth}
             onH={setHeight}
             onD={setDepth}
-          />
+          />}
         </div>
 
         <TypeSelector />
+        {boxType === "tierCasket" && (
+          <div style={card}>
+            <div style={cardTitle}>Размеры ярусов (мм)</div>
+            <div>Первый ярус. W и D общие для лотков</div>
+            <SizesRow wStore={tiers.widthMM} hStore={tiers.lowerHeightMM} dStore={tiers.depthMM}
+              onW={(v) => setTiers({ widthMM: v })} onH={(v) => setTiers({ lowerHeightMM: v })}
+              onD={(v) => setTiers({ depthMM: v })} commitOnBlur />
+            {(["middleHeightMM", "upperHeightMM"] as const).map((key, index) => (
+              <label key={key} style={{ display: "block", marginTop: 8 }}>
+                {index === 0 ? "Высота второго яруса" : "Высота третьего яруса"}
+                <input key={String(tiers[key])} type="number" min={1} step="any"
+                  defaultValue={tiers[key]} style={{ width: 80, marginLeft: 8 }}
+                  onBlur={(e) => {
+                    const value = Number(e.currentTarget.value);
+                    if (Number.isFinite(value) && value > 0) setTiers({ [key]: value });
+                    else e.currentTarget.value = String(tiers[key]);
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+              </label>
+            ))}
+            <div style={{ marginTop: 8 }}>Верхний ярус: 2 лотка по {(tiers.widthMM - 3) / 2} × {tiers.depthMM} × {tiers.upperHeightMM} мм.</div>
+            <div>Наружная высота: {tiers.lowerHeightMM} + 5 + {tiers.middleHeightMM} + 2 + {tiers.upperHeightMM} + 2 = {height} мм.</div>
+          </div>
+        )
         {boxType === "vCutHex" && (
           <div style={card}>
             <label><input type="checkbox" checked={vCutInsertEnabled} onChange={(e) => setVCutInsertEnabled(e.currentTarget.checked)} /> Внутренняя вставка</label>

@@ -1,3 +1,4 @@
+import { DEFAULT_TIERS, normalizeTiers, tierGeometry, type TierSettings } from "../lib/tierGeometry";
 // src/store/useBoxStore.ts
 import { create } from "zustand";
 
@@ -51,6 +52,8 @@ type BoxStore = {
   vCutInsert: { widthMM: number; heightMM: number; depthMM: number };
   setVCutInsertEnabled: (enabled: boolean) => void;
   setVCutInsert: (dims: Partial<{ widthMM: number; heightMM: number; depthMM: number }>) => void;
+  tiers: TierSettings;
+  setTiers: (dims: Partial<TierSettings>) => void;
   sliderTray: { widthMM: number; heightMM: number; depthMM: number } | null;
   setSliderTray: (dims: Partial<{ widthMM: number; heightMM: number; depthMM: number }>) => void;
 
@@ -150,6 +153,14 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
       ? { vCutInsert, width: vCutInsert.widthMM + 5, depth: vCutInsert.depthMM + 4, height: vCutInsert.heightMM - 10 }
       : { vCutInsert };
   }),
+  tiers: { ...DEFAULT_TIERS },
+  setTiers: (dims) => set((s) => {
+    const tiers = normalizeTiers({ ...s.tiers, ...dims });
+    const g = tierGeometry(tiers);
+    return s.boxType === "tierCasket"
+      ? { tiers, width: g.width, height: g.height, depth: g.depth }
+      : { tiers };
+  }),
   sliderTray: null,
   setSliderTray: (dims) => set((s) => {
     const prev = s.sliderTray ?? { widthMM: Math.max(1, s.width - 6), heightMM: Math.max(1, s.height / 2), depthMM: Math.max(1, s.depth - 6) };
@@ -201,6 +212,10 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
 
   setBoxType: (t) => set((s) => ({
     boxType: t,
+    ...(t === "tierCasket" ? (() => {
+      const g = tierGeometry(s.tiers);
+      return { width: g.width, height: g.height, depth: g.depth };
+    })() : {}),
     ...(t === "casketSlider" ? {
       sliderTray: s.sliderTray ?? {
         widthMM: Math.max(1, s.width - 6),

@@ -161,6 +161,7 @@ export default function PriceEstimator() {
 
   const vCutInsertEnabled = useBoxStore((s) => s.vCutInsertEnabled);
   const vCutInsert = useBoxStore((s) => s.vCutInsert);
+  const tiers = useBoxStore((s) => s.tiers);
   const sliderTray = useBoxStore((s) => s.sliderTray);
 
   // store: код/сброс
@@ -202,22 +203,22 @@ export default function PriceEstimator() {
   // ламинация
   const lamDisabled = wrapPaper === "designer_120";
   const lamRequired = wrapPaper === "offset_150" || wrapPaper === "coated_150";
-  const lamValue = (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapLam : lamination;
+  const lamValue = (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket") ? wrapLam : lamination;
   const setLamValue = (v: "none" | "matt" | "gloss") =>
-    (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? setWrapLam(v) : setLamination(v);
+    (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket") ? setWrapLam(v) : setLamination(v);
 
   useEffect(() => {
     if (lamDisabled) {
-      (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? setWrapLam("none") : setLamination("none");
+      (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket") ? setWrapLam("none") : setLamination("none");
     } else if (lamRequired) {
-      (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap")
+      (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket")
         ? wrapLam === "none" && setWrapLam("matt")
         : lamination === "none" && setLamination("matt");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapPaper, boxType]);
 
-  const innerPaperAuto = boxType === "vCutHex" || boxType === "hexBox" || boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapPaper : "none";
+  const innerPaperAuto = boxType === "vCutHex" || boxType === "hexBox" || boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket") ? wrapPaper : "none";
 
   // inputs
   const inputs = useMemo(() => {
@@ -225,6 +226,7 @@ export default function PriceEstimator() {
     const logosMeta = extractLogosMeta(logos, { W, H, D }, String(boxType || ""));
     const base = {
       widthMM: W, heightMM: H, depthMM: D, boxType,
+      tiers: boxType === "tierCasket" ? tiers : undefined,
       vCutInsert: boxType === "vCutHex" && vCutInsertEnabled ? vCutInsert : undefined,
       sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       quantity: Math.max(1, Math.floor(quantity)), currency, print,
@@ -233,12 +235,12 @@ export default function PriceEstimator() {
       finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
       logosMeta,
     };
-    const lamObj = (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap")
+    const lamObj = (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap" || boxType === "tierCasket")
       ? { wrapLamination: lamDisabled ? "none" : wrapLam || (lamRequired ? "matt" : "none") }
       : { lamination: lamDisabled ? "none" : lamination || (lamRequired ? "matt" : "none") };
     const lidLongObj = boxType === "lidBottom" ? { lidLong: !!lidLong } : {};
     return { ...base, ...lamObj, ...lidLongObj };
-  }, [width,height,depth,boxType,vCutInsertEnabled,vCutInsert,sliderTray,quantity,currency,print,baseBoard,wrapPaper,lamination,wrapLam,innerPaperAuto,innerMode,lamDisabled,lamRequired,finBlind,finFoil,finUV,finMagnets,lidLong,drawerSleeveInner,logos]);
+  }, [width,height,depth,boxType,tiers,vCutInsertEnabled,vCutInsert,sliderTray,quantity,currency,print,baseBoard,wrapPaper,lamination,wrapLam,innerPaperAuto,innerMode,lamDisabled,lamRequired,finBlind,finFoil,finUV,finMagnets,lidLong,drawerSleeveInner,logos]);
 
   const out = useMemo(() => estimateCost(inputs as any), [inputs]);
 
@@ -296,6 +298,7 @@ function generatePDF() {
   try {
     const metaCommon = {
       boxType,
+      tiers: boxType === "tierCasket" ? tiers : undefined,
       vCutInsert: boxType === "vCutHex" && vCutInsertEnabled ? vCutInsert : undefined,
       sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       widthMM: Number(width) || 0,
