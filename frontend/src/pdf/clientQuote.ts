@@ -1,3 +1,4 @@
+import { CLICHE_CM2_RATE } from "../lib/costing";
 import { tierGeometry, type TierSettings } from "../lib/tierGeometry";
 import { getCanvasSnapshot } from "./canvasSnapshot";
 ﻿// src/pdf/clientQuote.ts
@@ -459,7 +460,7 @@ export default async function generateClientQuote(args: Args) {
     }
   }
 
-  /* ====== КЛИШЕ (без цен) ====== */
+  /* ====== РАЗМЕРЫ ЛОГОТИПОВ И КЛИШЕ ====== */
   if (PDF_SECTIONS.clicheTable) {
     const dims = { W: Number(args.widthMM) || 0, H: Number(args.heightMM) || 0, D: Number(args.depthMM) || 0 };
     const logosMeta = await extractLogosMeta(args.logos || {}, dims, args.boxType);
@@ -470,17 +471,24 @@ export default async function generateClientQuote(args: Args) {
       setBold(); doc.setFontSize(11);
       doc.text("Размеры логотипов", M, startY - 3);
 
+      const clicheProcesses = Number(!!args.finishing?.blindEmboss) + Number(!!args.finishing?.foilStamp);
+      const clicheArea = logosMeta.reduce((sum, r) => sum + Math.max(0, r.wMM) * Math.max(0, r.hMM) / 100 * clicheProcesses, 0);
+      const clicheTotal = logosMeta.reduce((sum, r) => sum + Math.round(Math.max(0, r.wMM) * Math.max(0, r.hMM) / 100 * CLICHE_CM2_RATE * clicheProcesses), 0);
       const body: RowInput[] = logosMeta.map((r, idx) => ([
         String(idx + 1),
         sideRu(r.side),
         `${r.wMM} × ${r.hMM}`,
         ((r.wMM * r.hMM) / 100).toFixed(1),  // площадь см²
         processes.join(", ") || "—",
+        ...(clicheProcesses ? [String(Math.round(Math.max(0, r.wMM) * Math.max(0, r.hMM) / 100 * CLICHE_CM2_RATE * clicheProcesses))] : []),
       ]));
 
       autoTable(doc, {
         startY,
-        head: [["№", "Сторона", "Размер (мм)", "Площадь (см²)", "Процессы"]],
+        head: [["№", "Сторона", "Размер (мм)", "Площадь (см²)", "Процессы", ...(clicheProcesses ? ["Клише (руб.)"] : [])]],
+        foot: clicheProcesses ? [[{ content: `Клише: ${clicheArea.toFixed(1)} см² × ${CLICHE_CM2_RATE} руб./см². Разово на тираж.`, colSpan: 5 }, String(clicheTotal)]] : [],
+        showFoot: "lastPage",
+        footStyles: { fillColor: [245, 245, 245], textColor: 0, fontStyle: "normal" },
         body,
         styles:     { font: "NotoSans", fontSize: 9.5, cellPadding: 2 },
         headStyles: {
@@ -490,10 +498,11 @@ export default async function generateClientQuote(args: Args) {
         },
         columnStyles: {
           0: { cellWidth: 10, halign: "right" as const },
-          1: { cellWidth: 34 },
-          2: { cellWidth: 34 },
-          3: { cellWidth: 28, halign: "right" as const },
-          4: { cellWidth: 24, halign: "left" as const },
+          1: { cellWidth: 25 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 25, halign: "right" as const },
+          4: { cellWidth: 40, halign: "left" as const },
+          ...(clicheProcesses ? { 5: { cellWidth: 30, halign: "right" as const } } : {}),
         },
         margin: { left: M, right: M },
       });

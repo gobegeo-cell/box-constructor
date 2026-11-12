@@ -88,7 +88,7 @@ const RATES = {
   overheadPct: 0.18,
 };
 
-export const CLICHE_CM2_RATE = 59;
+export const CLICHE_CM2_RATE = 45;
 
 function tierDiscount(qty: number) {
   if (qty >= 5000) return 0.1;
