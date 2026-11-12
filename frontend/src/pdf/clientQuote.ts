@@ -49,6 +49,7 @@ function sideRu(k: string): string {
 function mapBoxTypeRu(t: string) {
   switch (t) {
     case "casket": return "Шкатулка";
+    case "casketSlider": return "Шкатулка слайдер";
     case "lidBottom": return "Крышка-дно";
     case "drawer": return "Пенал";
     case "hex": return "Шестигранная";
@@ -389,7 +390,12 @@ export default async function generateClientQuote(args: Args) {
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
   const innerWrap = (args.boxType === "lidBottom" || args.boxType === "casket") ? args.wrapPaper : "none";
-  headerLines.push(`Футеровка: ${mapWrap(innerWrap)}`);
+  if (args.boxType === "casketSlider") {
+    if ((args as any).innerMode === "bottom") headerLines.push(`Кашировка внутри дна: ${mapWrap(args.wrapPaper)}`);
+    if ((args as any).drawerSleeveInner) headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
+  } else {
+    headerLines.push(`Футеровка: ${mapWrap(innerWrap)}`);
+  }
 
   if (args.print === "fullWrap" && args.fullWrapFileName) {
     headerLines.push(`Макет полноцвета: ${args.fullWrapFileName}`);
