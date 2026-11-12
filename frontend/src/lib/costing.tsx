@@ -1,7 +1,7 @@
 /* =========================
    ТИПЫ ВХОДА/ВЫХОДА
    ========================= */
-export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "casketCounterFlap" | "hex" | "hexBox";
+export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "casketCounterFlap" | "hex" | "hexBox" | "vCutHex";
 type Lam = "none" | "matt" | "gloss";
 type PrintMode = "logosOnly" | "fullWrap";
 
@@ -16,6 +16,7 @@ export type CostInputs = {
   quantity: number;
   currency?: string;
   boxType: BoxType;
+  vCutInsert?: { widthMM: number; heightMM: number; depthMM: number };
   sliderTray?: { widthMM: number; heightMM: number; depthMM: number };
 
   // материалы
@@ -300,7 +301,41 @@ export function estimateCost(i: CostInputs) {
     sleeveInnerSheets: 0,
   };
 
-  if (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap") {
+  if (i.boxType === "vCutHex") {
+    const insert = i.vCutInsert;
+    const iw = insert ? Math.max(1, insert.widthMM) : W - 5;
+    const id = insert ? Math.max(1, insert.depthMM) : D - 4;
+    const ih = insert ? Math.max(11, insert.heightMM) : H + 10;
+    const ow = insert ? iw + 5 : W;
+    const od = insert ? id + 4 : D;
+    const closedH = insert ? ih - 10 : H;
+    // 60/40 at insert height 80. Bound each sloped blank by its tallest wall.
+    const lidHigh = Math.min(closedH, ih * 0.75);
+    const lidLow = Math.min(lidHigh, ih * 0.5);
+    const baseHigh = Math.max(1, closedH - lidLow);
+    const base = lidBottomLayoutsPrecise(ow, baseHigh, od, lidHigh, 0).base;
+    const lid = lidBottomLayoutsPrecise(ow, baseHigh, od, lidHigh, 0).lid;
+    const parts = [
+      { layout: base, lined: i.innerMode === "bottom" },
+      { layout: lid, lined: true },
+    ];
+    if (insert) parts.push({
+      layout: lidBottomLayoutsPrecise(iw, ih, id, 40, 0).base,
+      lined: i.innerMode === "bottom",
+    });
+    const innerKey = i.innerPaper && i.innerPaper !== "none" ? i.innerPaper : i.wrapPaper ?? "designer_120";
+    for (const { layout, lined } of parts) {
+      const b = packOnSheet(layout.board.w, layout.board.h, qty).sheets;
+      const w = packOnSheet(layout.wrap.w, layout.wrap.h, qty).sheets;
+      const n = lined ? packOnSheet(layout.inner.w, layout.inner.h, qty).sheets : 0;
+      sheets.board += b; sheets.wrap += w; sheets.inner += n;
+      materialCost += b * SHEET_PRICE[i.baseBoard ?? "chip_1_5"]
+        + w * SHEET_PRICE[i.wrapPaper ?? "designer_120"] + n * SHEET_PRICE[innerKey];
+      areaLamM2 += mm2ToM2(layout.wrap.w, layout.wrap.h) * qty;
+    }
+    areaPrintM2 = i.print === "fullWrap" ? areaLamM2 : 0;
+    areaLogosM2 = i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0;
+  } else if (i.boxType === "casket" || i.boxType === "casketSlider" || i.boxType === "casketCounterFlap") {
     const { boardSheets, wrapSheets: wrapSheetsOuter, innerLidSheets, innerBottomSheets, layouts } =
       sheetsForCasketByLayouts(W, H, D, qty);
 

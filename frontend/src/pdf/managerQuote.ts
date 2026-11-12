@@ -53,6 +53,7 @@ function mapBoxTypeRu(t: string) {
     case "casketSlider": return "Шкатулка слайдер";
     case "lidBottom": return "Крышка-дно";
     case "hexBox": return "V крышка";
+    case "vCutHex": return "V-образная крышка";
     case "drawer": return "Пенал";
     case "hex": return "Футляр";
     case "case":
@@ -261,6 +262,7 @@ async function extractLogosMeta(
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
   boxType: string;
+  vCutInsert?: { widthMM: number; heightMM: number; depthMM: number };
   sliderTray?: { widthMM: number; heightMM: number; depthMM: number };
   widthMM: number; heightMM: number; depthMM: number;
   quantity: number;
@@ -397,6 +399,11 @@ export default async function generateManagerQuote(args: Args) {
   const headerLines: string[] = [];
   headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
   headerLines.push(`Габариты (мм): W ${args.widthMM} × H ${args.heightMM} × D ${args.depthMM}`);
+  if (args.boxType === "vCutHex" && args.vCutInsert) {
+    const t = args.vCutInsert;
+    headerLines.push(`Вставка (мм): ${t.widthMM} × ${t.depthMM} × ${t.heightMM}`);
+    headerLines.push("Видимая полоса вставки: 10 мм");
+  }
   if (args.boxType === "casketSlider" && args.sliderTray) {
     const t = args.sliderTray;
     headerLines.push(`Внутренний лоток (мм): W ${t.widthMM} × H ${t.heightMM} × D ${t.depthMM}`);
@@ -408,7 +415,7 @@ export default async function generateManagerQuote(args: Args) {
   headerLines.push(`Печать: ${printText}`);
   if (processes.length) headerLines.push(`Отделка: ${processes.join(", ")}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
-  const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox") || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap")) ? args.wrapPaper : "none";
+  const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || args.boxType === "vCutHex") || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
   } else if (args.boxType === "drawer") {
@@ -533,6 +540,7 @@ export default async function generateManagerQuote(args: Args) {
   try {
     // 1) Пересчёт — как на панели
     const inputs = {
+      vCutInsert: args.vCutInsert,
       sliderTray: args.sliderTray,
       widthMM: Number(args.widthMM) || 0,
       heightMM: Number(args.heightMM) || 0,
@@ -547,7 +555,7 @@ export default async function generateManagerQuote(args: Args) {
       ...((args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap")
         ? { wrapLamination: (args as any).wrapLamination ?? "none" }
         : { lamination: (args as any).lamination ?? "none" }),
-      innerPaper: ((args.boxType === "lidBottom" || args.boxType === "hexBox") || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap"))
+      innerPaper: ((args.boxType === "lidBottom" || args.boxType === "hexBox" || args.boxType === "vCutHex") || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap"))
         ? (args as any).wrapPaper : "none",
       innerMode: (args as any).innerMode ?? "none",
       drawerSleeveInner: (args as any).drawerSleeveInner ?? false,

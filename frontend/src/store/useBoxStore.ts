@@ -47,6 +47,10 @@ type BoxStore = {
   width: number;
   height: number;
   depth: number;
+  vCutInsertEnabled: boolean;
+  vCutInsert: { widthMM: number; heightMM: number; depthMM: number };
+  setVCutInsertEnabled: (enabled: boolean) => void;
+  setVCutInsert: (dims: Partial<{ widthMM: number; heightMM: number; depthMM: number }>) => void;
   sliderTray: { widthMM: number; heightMM: number; depthMM: number } | null;
   setSliderTray: (dims: Partial<{ widthMM: number; heightMM: number; depthMM: number }>) => void;
 
@@ -127,6 +131,25 @@ export const useBoxStore = create<BoxStore>((set, get) => ({
   width: 250,
   height: 80,
   depth: 160,
+  vCutInsertEnabled: false,
+  vCutInsert: { widthMM: 250, heightMM: 80, depthMM: 180 },
+  setVCutInsertEnabled: (enabled) => set((s) => {
+    const t = s.vCutInsert;
+    return enabled && s.boxType === "vCutHex"
+      ? { vCutInsertEnabled: enabled, width: t.widthMM + 5, depth: t.depthMM + 4, height: t.heightMM - 10 }
+      : { vCutInsertEnabled: enabled };
+  }),
+  setVCutInsert: (dims) => set((s) => {
+    const t = s.vCutInsert;
+    const vCutInsert = {
+      widthMM: Math.max(1, num(dims.widthMM, t.widthMM)),
+      depthMM: Math.max(1, num(dims.depthMM, t.depthMM)),
+      heightMM: Math.max(11, num(dims.heightMM, t.heightMM)),
+    };
+    return s.boxType === "vCutHex" && s.vCutInsertEnabled
+      ? { vCutInsert, width: vCutInsert.widthMM + 5, depth: vCutInsert.depthMM + 4, height: vCutInsert.heightMM - 10 }
+      : { vCutInsert };
+  }),
   sliderTray: null,
   setSliderTray: (dims) => set((s) => {
     const prev = s.sliderTray ?? { widthMM: Math.max(1, s.width - 6), heightMM: Math.max(1, s.height / 2), depthMM: Math.max(1, s.depth - 6) };

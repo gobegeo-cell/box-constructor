@@ -26,6 +26,10 @@ const DEFAULT_D = 80;
 
 export default function BoxWithControls() {
   const boxType = useBoxStore((s) => s.boxType);
+  const vCutInsertEnabled = useBoxStore((s) => s.vCutInsertEnabled);
+  const vCutInsert = useBoxStore((s) => s.vCutInsert);
+  const setVCutInsert = useBoxStore((s) => s.setVCutInsert);
+  const setVCutInsertEnabled = useBoxStore((s) => s.setVCutInsertEnabled);
   const sliderTray = useBoxStore((s) => s.sliderTray);
   const setSliderTray = useBoxStore((s) => s.setSliderTray);
   const width = useBoxStore((s) => s.width);
@@ -205,6 +209,18 @@ export default function BoxWithControls() {
         </div>
 
         <TypeSelector />
+        {boxType === "vCutHex" && (
+          <div style={card}>
+            <label><input type="checkbox" checked={vCutInsertEnabled} onChange={(e) => setVCutInsertEnabled(e.currentTarget.checked)} /> Внутренняя вставка</label>
+            {vCutInsertEnabled && <>
+              <div style={cardTitle}>Размеры вставки (мм)</div>
+              <SizesRow wStore={vCutInsert.widthMM} hStore={vCutInsert.heightMM} dStore={vCutInsert.depthMM}
+                onW={(v) => setVCutInsert({ widthMM: v })} onH={(v) => setVCutInsert({ heightMM: v })}
+                onD={(v) => setVCutInsert({ depthMM: v })} commitOnBlur />
+              <div>Наружные части без зазора: {vCutInsert.widthMM + 5} × {vCutInsert.depthMM + 4} × {vCutInsert.heightMM - 10} мм. Полоса вставки: 10 мм.</div>
+            </>}
+          </div>
+        )
         {boxType === "casketSlider" && sliderTray && (
           <div style={card}>
             <div style={cardTitle}>Внутренний лоток (мм)</div>

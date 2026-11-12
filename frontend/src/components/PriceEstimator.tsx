@@ -159,6 +159,8 @@ export default function PriceEstimator() {
     boxType: s.boxType, sideColors: s.sideColors, logos: s.logos,
   }));
 
+  const vCutInsertEnabled = useBoxStore((s) => s.vCutInsertEnabled);
+  const vCutInsert = useBoxStore((s) => s.vCutInsert);
   const sliderTray = useBoxStore((s) => s.sliderTray);
 
   // store: код/сброс
@@ -215,7 +217,7 @@ export default function PriceEstimator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapPaper, boxType]);
 
-  const innerPaperAuto = boxType === "hexBox" || boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapPaper : "none";
+  const innerPaperAuto = boxType === "vCutHex" || boxType === "hexBox" || boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapPaper : "none";
 
   // inputs
   const inputs = useMemo(() => {
@@ -223,6 +225,7 @@ export default function PriceEstimator() {
     const logosMeta = extractLogosMeta(logos, { W, H, D }, String(boxType || ""));
     const base = {
       widthMM: W, heightMM: H, depthMM: D, boxType,
+      vCutInsert: boxType === "vCutHex" && vCutInsertEnabled ? vCutInsert : undefined,
       sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       quantity: Math.max(1, Math.floor(quantity)), currency, print,
       baseBoard, wrapPaper: wrapPaper as any, innerPaper: innerPaperAuto as any,
@@ -235,7 +238,7 @@ export default function PriceEstimator() {
       : { lamination: lamDisabled ? "none" : lamination || (lamRequired ? "matt" : "none") };
     const lidLongObj = boxType === "lidBottom" ? { lidLong: !!lidLong } : {};
     return { ...base, ...lamObj, ...lidLongObj };
-  }, [width,height,depth,boxType,sliderTray,quantity,currency,print,baseBoard,wrapPaper,lamination,wrapLam,innerPaperAuto,innerMode,lamDisabled,lamRequired,finBlind,finFoil,finUV,finMagnets,lidLong,drawerSleeveInner,logos]);
+  }, [width,height,depth,boxType,vCutInsertEnabled,vCutInsert,sliderTray,quantity,currency,print,baseBoard,wrapPaper,lamination,wrapLam,innerPaperAuto,innerMode,lamDisabled,lamRequired,finBlind,finFoil,finUV,finMagnets,lidLong,drawerSleeveInner,logos]);
 
   const out = useMemo(() => estimateCost(inputs as any), [inputs]);
 
@@ -293,6 +296,7 @@ function generatePDF() {
   try {
     const metaCommon = {
       boxType,
+      vCutInsert: boxType === "vCutHex" && vCutInsertEnabled ? vCutInsert : undefined,
       sliderTray: boxType === "casketSlider" ? sliderTray ?? undefined : undefined,
       widthMM: Number(width) || 0,
       heightMM: Number(height) || 0,
