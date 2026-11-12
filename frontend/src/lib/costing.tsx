@@ -435,6 +435,22 @@ export function estimateCost(i: CostInputs) {
     areaLamM2   = perUnitWrapAreaM2 * qty;
     areaLogosM2 = (i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0);
 
+  } else if (i.boxType === "hex") {
+    // The UI's "Футляр" uses the slider sleeve without its tray.
+    const L = casketSliderLayouts(W, H, D).sleeve;
+    sheets.board = packOnSheet(L.board.w, L.board.h, qty).sheets;
+    sheets.wrap = packOnSheet(L.wrap.w, L.wrap.h, qty).sheets;
+    sheets.inner = packOnSheet(L.inner.w, L.inner.h, qty).sheets;
+    sheetsBreakdown.sleeveInnerSheets = sheets.inner;
+    const innerPriceKey = (i.innerPaper && i.innerPaper !== "none")
+      ? i.innerPaper : (i.wrapPaper ?? "designer_120");
+    materialCost = sheets.board * SHEET_PRICE[i.baseBoard ?? "chip_1_5"]
+      + sheets.wrap * SHEET_PRICE[i.wrapPaper ?? "designer_120"]
+      + sheets.inner * SHEET_PRICE[innerPriceKey];
+    const perUnitWrapAreaM2 = mm2ToM2(L.wrap.w, L.wrap.h);
+    areaPrintM2 = (i.print === "fullWrap" ? perUnitWrapAreaM2 : 0) * qty;
+    areaLamM2 = perUnitWrapAreaM2 * qty;
+    areaLogosM2 = (i.print === "logosOnly" ? logosAreaM2(i.logosMeta) : 0);
   } else {
     // Прочие (фоллбэк)
     const sM2 = surfaceAreaM2(W, H, D);
