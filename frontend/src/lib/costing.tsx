@@ -1,7 +1,7 @@
 /* =========================
    ТИПЫ ВХОДА/ВЫХОДА
    ========================= */
-export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "casketCounterFlap" | "hex";
+export type BoxType = "casket" | "lidBottom" | "drawer" | "casketSlider" | "casketCounterFlap" | "hex" | "hexBox";
 type Lam = "none" | "matt" | "gloss";
 type PrintMode = "logosOnly" | "fullWrap";
 
@@ -349,7 +349,7 @@ export function estimateCost(i: CostInputs) {
       areaLamM2 += trayWrapAreaM2;
     }
 
-  } else if (i.boxType === "lidBottom") {
+  } else if (i.boxType === "lidBottom" || i.boxType === "hexBox") {
     const lidH = Math.max(1, Number(i.lidHeightMM ?? ((i as any).lidLong ? H : 40)));
     const clearance = Math.max(0, Number(i.lidClearanceMM ?? LID_CLEARANCE_MM_DEFAULT));
     const S = sheetsForLidBottomPrecise(W, H, D, qty, lidH, clearance);

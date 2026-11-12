@@ -215,7 +215,7 @@ export default function PriceEstimator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapPaper, boxType]);
 
-  const innerPaperAuto = boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapPaper : "none";
+  const innerPaperAuto = boxType === "hexBox" || boxType === "lidBottom" || (boxType === "casket" || boxType === "casketSlider" || boxType === "casketCounterFlap") ? wrapPaper : "none";
 
   // inputs
   const inputs = useMemo(() => {
