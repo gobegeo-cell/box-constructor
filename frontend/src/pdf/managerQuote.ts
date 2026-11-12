@@ -1,3 +1,4 @@
+import { getCanvasSnapshot } from "./canvasSnapshot";
 ﻿// src/pdf/managerQuote.ts
 import jsPDF from "jspdf";
 import { estimateCost, fmt } from "../lib/costing";
@@ -195,7 +196,7 @@ function hasRealAsset(it: any): boolean {
   const hasFile = typeof File !== "undefined" && it.file instanceof File;
   const hasBlob = typeof Blob !== "undefined" && it.blob instanceof Blob;
   const content = typeof it.content === "string" ? it.content : "";
-  const contentOk = content.startsWith("blob:") || content.startsWith("data:") || /^https?:\/\//i.test(content);
+  const contentOk = content.trim().length > 0;
   const src = typeof it.src === "string" ? it.src : "";
   const srcOk = src.length > 0;
   const blobOrDataSrc = srcOk && (src.startsWith("blob:") || src.startsWith("data:"));
@@ -206,11 +207,11 @@ function hasRealAsset(it: any): boolean {
   return hasFile || hasBlob || contentOk || objUrl || blobOrDataSrc || srcOk || hasUrl || hasData || hasSvgOrText || it.enabled === true;
 }
 
-function extractLogosMeta(
+async function extractLogosMeta(
   logos: any,
   dims: { W: number; H: number; D: number },
   boxType?: string
-): { side: string; wMM: number; hMM: number }[] {
+): Promise<{ side: string; wMM: number; hMM: number }[]> {
   const out: { side: string; wMM: number; hMM: number }[] = [];
   if (!logos || typeof logos !== "object") return out;
 
@@ -224,7 +225,26 @@ function extractLogosMeta(
     for (const it of list) {
       if (!hasRealAsset(it)) continue;
       let mm = pickMM(it);
-      if (!mm) mm = pickPctOrScale(it, face);
+      if (!mm) {
+        let aspect = it.type === "text" ? 2 : 1;
+        const src = it.content || it.src;
+        if (src && it.type !== "text") {
+          try {
+            const img = new Image();
+            img.src = String(src);
+            await img.decode();
+            aspect = img.naturalWidth / img.naturalHeight || 1;
+          } catch { /* Fall back to square proportions if the asset is unavailable. */ }
+        }
+        const sx = Number(it.scale?.x) || 0;
+        const sz = Number(it.scale?.z) || 0;
+        const ratio = Math.max(0.05, Math.min(0.95, sx && sz ? Math.min(sx, sz) : sx || sz || 0.3));
+        const base = Math.min(face.w, face.h) * ratio;
+        const w = base * (aspect >= 1 ? aspect : 1);
+        const h = base * (aspect >= 1 ? 1 : 1 / aspect);
+        const fit = Math.min(face.w * 0.96 / w, face.h * 0.96 / h, 1);
+        mm = { w: w * fit, h: h * fit };
+      }
       if (!mm) continue;
       const wMM = Math.round(mm.w * 10) / 10;
       const hMM = Math.round(mm.h * 10) / 10;
@@ -235,32 +255,6 @@ function extractLogosMeta(
 }
 
 /* === DPR-корректный снимок Canvas (встроенный хелпер) === */
-async function getCanvasSnapshot() {
-  const c = (window as any).__boxCanvas as HTMLCanvasElement | undefined
-    || (document.querySelector("#box-canvas canvas") as HTMLCanvasElement | null)
-    || (document.querySelector("canvas") as HTMLCanvasElement | null);
-
-  if (!c || !c.width || !c.height) return null;
-
-  // дождёмся 2 кадров, чтобы рендер точно завершился
-  await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-
-  const dataUrl: string = await new Promise((resolve) => {
-    if (c.toBlob) {
-      c.toBlob((blob) => {
-        if (!blob) return resolve(c.toDataURL("image/png", 1));
-        const fr = new FileReader();
-        fr.onloadend = () => resolve(fr.result as string);
-        fr.readAsDataURL(blob);
-      }, "image/png", 0.95);
-    } else {
-      resolve(c.toDataURL("image/png", 1));
-    }
-  });
-
-  return { dataUrl, w: c.width, h: c.height };
-}
-
 /* ====== Типы аргументов ====== */
 type Finishing = { blindEmboss?: boolean; foilStamp?: boolean; spotUV?: boolean; magnetsPair?: boolean; };
 type Args = {
@@ -441,57 +435,44 @@ export default async function generateManagerQuote(args: Args) {
     }
   }
 
-  /* ====== КЛИШЕ ====== */
-  // --- Восстанавливаем размеры логотипов, если клиент не прислал sizeMM ---
-  if (args.logos && typeof args.logos === "object") {
-    const dims = {
-      W: Number(args.widthMM) || 0,
-      H: Number(args.heightMM) || 0,
-      D: Number(args.depthMM) || 0,
-    };
+  /* ====== КЛИШЕ (без цен) ====== */
+  if (PDF_SECTIONS.clicheTable) {
+    const dims = { W: Number(args.widthMM) || 0, H: Number(args.heightMM) || 0, D: Number(args.depthMM) || 0 };
+    const logosMeta = await extractLogosMeta(args.logos || {}, dims, args.boxType);
 
-    const getFaceMM = (side: string) => {
-      switch (String(side).toLowerCase()) {
-        case "front":
-        case "back":
-        case "front_flap": return { w: dims.W, h: dims.H };
-        case "left":
-        case "right":      return { w: dims.D, h: dims.H };
-        case "top":
-        case "bottom":     return { w: dims.W, h: dims.D };
-        default:           return { w: dims.W, h: dims.H };
-      }
-    };
+    if (logosMeta.length > 0) {
+      const afterColorsY = (doc as any).lastAutoTable?.finalY ?? (GRID.colors.y + 22);
+      const startY = Math.max(afterColorsY, GRID.colors.y + 22, ry) + GRID.tableYOffset + 5;
+      setBold(); doc.setFontSize(11);
+      doc.text("Размеры логотипов", M, startY - 3);
 
-    for (const [side, logos] of Object.entries(args.logos)) {
-      const list = Array.isArray(logos) ? logos : [logos];
-      const face = getFaceMM(side);
+      const body: RowInput[] = logosMeta.map((r, idx) => ([
+        String(idx + 1),
+        sideRu(r.side),
+        `${r.wMM} × ${r.hMM}`,
+        ((r.wMM * r.hMM) / 100).toFixed(1),  // площадь см²
+        "—", // сюда можно подставлять процессы, если есть
+      ]));
 
-      for (const it of list) {
-        // если sizeMM уже есть — не трогаем
-        if ((it as any).sizeMM && (it as any).sizeMM.w && (it as any).sizeMM.h) continue;
-
-        // если есть проценты — пересчёт
-        if ((it as any).pctW && (it as any).pctH) {
-          const kW = (it as any).pctW > 1 ? (it as any).pctW / 100 : (it as any).pctW;
-          const kH = (it as any).pctH > 1 ? (it as any).pctH / 100 : (it as any).pctH;
-          (it as any).sizeMM = { w: Math.round(face.w * kW * 10) / 10, h: Math.round(face.h * kH * 10) / 10 };
-          continue;
-        }
-
-        // если есть scale или scaleX/Y — пересчёт
-        const s  = Number((it as any).scale) || Number((it as any).sx) || Number((it as any).scaleX) || 0;
-        const sy = Number((it as any).sy) || Number((it as any).scaleY) || 0;
-        const k  = sy > 0 ? Math.min(s, sy) : s;
-        if (k > 0) {
-          const kk = k > 2 ? k / 100 : k; // если scale = 25, значит 25%
-          (it as any).sizeMM = { w: Math.round(face.w * kk * 10) / 10, h: Math.round(face.h * kk * 10) / 10 };
-          continue;
-        }
-
-        // если совсем ничего нет — дефолт 30×30 мм
-        (it as any).sizeMM = { w: 30, h: 30 };
-      }
+      autoTable(doc, {
+        startY,
+        head: [["№", "Сторона", "Размер (мм)", "Площадь (см²)", "Процессы"]],
+        body,
+        styles:     { font: "NotoSans", fontSize: 9.5, cellPadding: 2 },
+        headStyles: {
+          font: "NotoSans", fontStyle: "bold",
+          fillColor: (PDF_LAYOUT.tableAccentFromBrand ? brandRGB : [206, 94, 12]) as any,
+          textColor: 255, halign: "left",
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "right" as const },
+          1: { cellWidth: 34 },
+          2: { cellWidth: 34 },
+          3: { cellWidth: 28, halign: "right" as const },
+          4: { cellWidth: 24, halign: "left" as const },
+        },
+        margin: { left: M, right: M },
+      });
     }
   }
 
