@@ -122,7 +122,6 @@ function logosAreaM2(logos: CostInputs["logosMeta"]) {
    ========================= */
 const GAP  = 4;
 const TURN = 30;
-const RESV = 4;
 
 const DIECUT_ADD = 10; // по 10 мм с каждой стороны
 const OUTER_ADD  = 30; // по 30 мм с каждой стороны
@@ -133,23 +132,25 @@ const LID_CLEARANCE_MM_DEFAULT = 6;
    ШКАТУЛКА — раскладки
    ========================= */
 function casketLayouts(W: number, H: number, D: number) {
-  const boardW = W + 2 * H;
-  const boardH = D + 2 * H;
+  const boardW = W + 2 * H + 10;
+  const boardH = D + 2 * H + 10;
 
   const lidBoardMasterW = W + 10;
-  const lidBoardMasterH = H + (H + 2) + (D + 2) + (D + 5);
+  // Four cover panels with three 4 mm hinge gaps.
+  const lidBoardMasterH = H + (H + 2) + (D + 2) + (D + 5) + 3 * GAP;
 
-  const bottomStripW = W + 2 * D + 50;
-  const bottomStripH = H + 40;
+  // Side panels overlap by 4 mm; each rear end has a 15 mm turn-in.
+  const bottomStripW = W + 2 * (D + 4) + 2 * 15;
+  const bottomStripH = H + TURN;
 
   const lidWrapW = (W + 10) + 30;
-  const lidWrapH = lidBoardMasterH + (3 * GAP) + TURN + RESV;
+  const lidWrapH = lidBoardMasterH + TURN;
 
-  const innerLidW = W + 5;
+  const innerLidW = W + 2;
   const innerLidH = D + H + 40;
 
-  const innerBottomW = (W + 2 * H) + 5;
-  const innerBottomH = (D + 2 * H) + 5;
+  const innerBottomW = boardW;
+  const innerBottomH = boardH;
 
   return {
     boardSize: { w: boardW, h: boardH },
