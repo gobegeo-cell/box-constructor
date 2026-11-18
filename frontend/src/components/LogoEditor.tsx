@@ -98,7 +98,6 @@ export default function LogoEditor() {
     if (!sizeMm?.w || !sizeMm?.h) {
       setLogoForSide(selectedSide, {
         size_mm: { w: 90, h: 57.6 },
-        position_mm: { xMm: 0, yMm: 0 },
         rotation_deg: 0,
         lockAspect: true
       });
@@ -186,46 +185,34 @@ export default function LogoEditor() {
     setHInput(String(Math.round(sNew.h)));
   };
 
-  // === ПОЗИЦИЯ (мм) ===
-  const pos = (logo?.position_mm && { xMm: Number(logo.position_mm.xMm)||0, yMm: Number(logo.position_mm.yMm)||0 })
-           || (logo?.position    && { xMm: Number(logo.position.x)||0,     yMm: Number(logo.position.y)||0 })
-           || { xMm: 0, yMm: 0 };
+  const isTopOrBottom = selectedSide === "top" || selectedSide === "bottom";
+  const position = logo?.position;
+  const x = position?.x ?? 0;
+  const y = isTopOrBottom ? (logo?.surfaceOffsetMM ?? 0) : (position?.y ?? 0);
+  const z = position?.z ?? 0;
+  const [xInput, setXInput] = useState(String(x));
+  const [yInput, setYInput] = useState(String(y));
+  const [zInput, setZInput] = useState(String(z));
 
-  const [xInput, setXInput] = useState(String(Math.round(pos.xMm)));
-  const [yInput, setYInput] = useState(String(Math.round(pos.yMm)));
+  useEffect(() => { setXInput(String(x)); }, [selectedSide, x]);
+  useEffect(() => { setYInput(String(y)); }, [selectedSide, y]);
+  useEffect(() => { setZInput(String(z)); }, [selectedSide, z]);
 
-  useEffect(() => { setXInput(String(Math.round(pos.xMm))); }, [pos.xMm]);
-  useEffect(() => { setYInput(String(Math.round(pos.yMm))); }, [pos.yMm]);
-
-  const applyX = () => {
-    const v = Number((xInput || "").replace(",", "."));
-    if (!isFinite(v)) return;
-    setLogoForSide(selectedSide, { position_mm: { xMm: v, yMm: pos.yMm }, position: { x: v, y: pos.yMm, z: logo?.position?.z || 0 } });
+  const applyPosition = (axis: "x" | "y" | "z", input: string) => {
+    const value = Number(input.replace(",", "."));
+    if (!Number.isFinite(value)) return;
+    const update = axis === "y" && isTopOrBottom
+      ? { surfaceOffsetMM: value }
+      : { position: { [axis]: value } };
+    setLogoForSide(selectedSide, update);
   };
 
-  // FIX: для top/bottom вторая ось должна писаться в position.z (а не y)
-  const applyY = () => {
-    const v = Number((yInput || "").replace(",", "."));
-    if (!isFinite(v)) return;
-    const isTopOrBottom = selectedSide === "top" || selectedSide === "bottom";
-    setLogoForSide(selectedSide, {
-      position_mm: { xMm: pos.xMm, yMm: v }, // «вторая ось в мм» оставляем как было
-      position: {
-        x: pos.xMm,
-        y: isTopOrBottom ? (logo?.position?.y || 0) : v,
-        z: isTopOrBottom ? v : (logo?.position?.z || 0),
-      }
-    });
-  };
-
-  // FIX: центрирование — обнуляем нужную ось: для top/bottom это z
   const centerPos = () => {
-    const isTopOrBottom = selectedSide === "top" || selectedSide === "bottom";
-    setLogoForSide(selectedSide, {
-      position_mm: { xMm: 0, yMm: 0 },
-      position: { x: 0, y: isTopOrBottom ? (logo?.position?.y || 0) : 0, z: isTopOrBottom ? 0 : (logo?.position?.z || 0) }
-    });
-    setXInput("0"); setYInput("0");
+    const position = isTopOrBottom ? { x: 0, z: 0 } : { x: 0, y: 0 };
+    setLogoForSide(selectedSide, { position });
+    setXInput("0");
+    if (isTopOrBottom) setZInput("0");
+    else setYInput("0");
   };
 
   // ПОВОРОТ / ЗЕРКАЛО
@@ -241,7 +228,6 @@ export default function LogoEditor() {
   const toggleFlipH = () => setLogoForSide(selectedSide, { flipH: !flipH });
   const toggleFlipV = () => setLogoForSide(selectedSide, { flipV: !flipV });
 
-  const isTopOrBottom = selectedSide === "top" || selectedSide === "bottom"; // FIX: используем и в подписи
 
   // UI
   return (
@@ -290,29 +276,36 @@ export default function LogoEditor() {
 </div>
 
       {/* позиция */}
-      {/* Две симметричные колонки для X и второй оси: label | input | OK */}
 <div style={{ ...row, gap: 12 }}>
-  {/* Кластер «X»: label | input | OK */}
   <div style={{ display: "grid", gridTemplateColumns: "64px 1fr 52px", alignItems: "center", columnGap: 6, minWidth: 260 }}>
     <label style={label}>X</label>
     <div style={inputWrap}>
       <input value={xInput} onChange={(e)=>setXInput(e.currentTarget.value)} style={input}/>
       <span style={suffix}>мм</span>
     </div>
-    <button style={{ ...btn, minWidth: 52 }} onClick={applyX}>OK</button>
+    <button style={{ ...btn, minWidth: 52 }} onClick={() => applyPosition("x", xInput)}>OK</button>
   </div>
 
-  {/* Кластер «Y/Z» (для top/bottom — Y, иначе — Z) */}
   <div style={{ display: "grid", gridTemplateColumns: "64px 1fr 52px", alignItems: "center", columnGap: 6, minWidth: 260 }}>
-    <label style={label}>{(selectedSide === "top" || selectedSide === "bottom") ? "Y" : "Z"}</label>
+    <label style={label}>{isTopOrBottom ? "Y (отступ)" : "Z"}</label>
     <div style={inputWrap}>
       <input value={yInput} onChange={(e)=>setYInput(e.currentTarget.value)} style={input}/>
       <span style={suffix}>мм</span>
     </div>
-    <button style={{ ...btn, minWidth: 52 }} onClick={applyY}>OK</button>
+    <button style={{ ...btn, minWidth: 52 }} onClick={() => applyPosition("y", yInput)}>OK</button>
   </div>
 
-  {/* Центрировать — как было */}
+  {isTopOrBottom && (
+    <div style={{ display: "grid", gridTemplateColumns: "64px 1fr 52px", alignItems: "center", columnGap: 6, minWidth: 260 }}>
+      <label style={label}>Z</label>
+      <div style={inputWrap}>
+        <input aria-label="Z" value={zInput} onChange={(e) => setZInput(e.currentTarget.value)} style={input} />
+        <span style={suffix}>мм</span>
+      </div>
+      <button style={{ ...btn, minWidth: 52 }} onClick={() => applyPosition("z", zInput)}>OK</button>
+    </div>
+  )}
+
   <button style={btn} onClick={centerPos}>Центрировать</button>
 </div>
 

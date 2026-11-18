@@ -205,29 +205,34 @@ export default function MobileLogoEditor() {
     setHInput(String(Math.round(sNew.h)));
   };
 
-  // === ПОЗИЦИЯ (мм) ===
-  const pos = logo?.position ?? { x: 0, y: 0, z: 0 };
-  const [xInput, setXInput] = useState(String(Math.round(pos.x)));
-  const [yInput, setYInput] = useState(String(Math.round(pos.y))); // вторая ось (Sticker сам положит её в Z для top/bottom)
+  const isTopOrBottom = selectedSide === "top" || selectedSide === "bottom";
+  const position = logo?.position;
+  const x = position?.x ?? 0;
+  const y = isTopOrBottom ? (logo?.surfaceOffsetMM ?? 0) : (position?.y ?? 0);
+  const z = position?.z ?? 0;
+  const [xInput, setXInput] = useState(String(x));
+  const [yInput, setYInput] = useState(String(y));
+  const [zInput, setZInput] = useState(String(z));
 
-  useEffect(() => { setXInput(String(Math.round(pos.x || 0))); }, [pos.x]);
-  useEffect(() => { setYInput(String(Math.round(pos.y || 0))); }, [pos.y]);
+  useEffect(() => { setXInput(String(x)); }, [selectedSide, x]);
+  useEffect(() => { setYInput(String(y)); }, [selectedSide, y]);
+  useEffect(() => { setZInput(String(z)); }, [selectedSide, z]);
 
-  const applyX = () => {
-    const v = Number((xInput || "").replace(",", "."));
-    if (!isFinite(v)) return;
-    setLogoForSide(selectedSide, { position: { ...logo?.position, x: v } });
-  };
-
-  const applyY = () => {
-    const v = Number((yInput || "").replace(",", "."));
-    if (!isFinite(v)) return;
-    setLogoForSide(selectedSide, { position: { ...logo?.position, y: v } });
+  const applyPosition = (axis: "x" | "y" | "z", input: string) => {
+    const value = Number(input.replace(",", "."));
+    if (!Number.isFinite(value)) return;
+    const update = axis === "y" && isTopOrBottom
+      ? { surfaceOffsetMM: value }
+      : { position: { [axis]: value } };
+    setLogoForSide(selectedSide, update);
   };
 
   const centerPos = () => {
-    setLogoForSide(selectedSide, { position: { x: 0, y: 0, z: 0 } });
-    setXInput("0"); setYInput("0");
+    const position = isTopOrBottom ? { x: 0, z: 0 } : { x: 0, y: 0 };
+    setLogoForSide(selectedSide, { position });
+    setXInput("0");
+    if (isTopOrBottom) setZInput("0");
+    else setYInput("0");
   };
 
   // ПОВОРОТ / ЗЕРКАЛО
@@ -243,7 +248,6 @@ export default function MobileLogoEditor() {
   const toggleFlipH = () => setLogoForSide(selectedSide, { flipH: !flipH });
   const toggleFlipV = () => setLogoForSide(selectedSide, { flipV: !flipV });
 
-  const isTopOrBottom = selectedSide === "top" || selectedSide === "bottom";
 
   // UI
   return (
@@ -302,17 +306,28 @@ export default function MobileLogoEditor() {
             <input value={xInput} onChange={(e)=>setXInput(e.currentTarget.value)} style={input}/>
             <span style={suffix}>мм</span>
           </div>
-          <button style={{ ...btn, minWidth: 52 }} onClick={applyX}>OK</button>
+          <button style={{ ...btn, minWidth: 52 }} onClick={() => applyPosition("x", xInput)}>OK</button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "64px 1fr 52px", alignItems: "center", columnGap: 6, minWidth: 260 }}>
-          <label style={label}>{isTopOrBottom ? "Z" : "Y"}</label>
+          <label style={label}>{isTopOrBottom ? "Y (отступ)" : "Y"}</label>
           <div style={inputWrap}>
             <input value={yInput} onChange={(e)=>setYInput(e.currentTarget.value)} style={input}/>
             <span style={suffix}>мм</span>
           </div>
-          <button style={{ ...btn, minWidth: 52 }} onClick={applyY}>OK</button>
+          <button style={{ ...btn, minWidth: 52 }} onClick={() => applyPosition("y", yInput)}>OK</button>
         </div>
+
+        {isTopOrBottom && (
+          <div style={{ display: "grid", gridTemplateColumns: "64px 1fr 52px", alignItems: "center", columnGap: 6, minWidth: 260 }}>
+            <label style={label}>Z</label>
+            <div style={inputWrap}>
+              <input aria-label="Z" value={zInput} onChange={(e) => setZInput(e.currentTarget.value)} style={input} />
+              <span style={suffix}>мм</span>
+            </div>
+            <button style={{ ...btn, minWidth: 52 }} onClick={() => applyPosition("z", zInput)}>OK</button>
+          </div>
+        )}
 
         <button style={btn} onClick={centerPos}>Центрировать</button>
       </div>

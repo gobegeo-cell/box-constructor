@@ -27,9 +27,12 @@ export default function MobileLogoSticker({ side }: { side?: BoxSide }) {
   const w = Math.max(1e-4, (logo?.sizeMM?.w ?? 100) / 1000);
   const h = Math.max(1e-4, (logo?.sizeMM?.h ?? 100) / 1000);
 
-  // Позиция: X и «вторая ось» (для top/bottom — Z, иначе — Y)
-  const posX      = (logo?.position?.x ?? 0) / 1000;
-  const posSecond = (logo?.position?.y ?? 0) / 1000;
+  const isHorizontal = effSide === "top" || effSide === "bottom";
+  const posX = (logo?.position?.x ?? 0) / 1000;
+  const posY = isHorizontal
+    ? (effSide === "top" ? -1 : 1) * (logo?.position?.z ?? 0) / 1000
+    : (logo?.position?.y ?? 0) / 1000;
+  const posZ = isHorizontal ? (logo?.surfaceOffsetMM ?? 0) / 1000 : 0;
 
   // Лёгкий отрыв от поверхности (во избежание z-fighting)
   const OFFSET = 0.0002;
@@ -52,12 +55,6 @@ export default function MobileLogoSticker({ side }: { side?: BoxSide }) {
     }
     return { rotation: rot, position: pos3 };
   }, [effSide, widthMM, heightMM, depthMM]);
-
-  // Локальная позиция наклейки на стороне
-  const localPos: [number, number, number] = useMemo(() => {
-    if (effSide === "top" || effSide === "bottom") return [posX, 0, posSecond]; // X/Z
-    return [posX, posSecond, 0]; // X/Y
-  }, [effSide, posX, posSecond]);
 
   // Поворот (рад) и зеркала (знаки масштаба по X/Y на САМОМ mesh)
   const rotationRad = logo?.rotation ?? 0; // в сторе — радианы
@@ -163,7 +160,7 @@ export default function MobileLogoSticker({ side }: { side?: BoxSide }) {
     >
       <mesh
         ref={meshRef}
-        position={localPos}
+        position={[posX, posY, posZ]}
         rotation={[0, 0, rotationRad]}
         // ВАЖНО: зеркала живут ЗДЕСЬ и не перезатираются пульсацией
         scale={[flipX, flipY, 1]}

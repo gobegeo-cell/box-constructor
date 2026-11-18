@@ -35,6 +35,7 @@ export type LogoData = {
   file?: File | null;
 
   position: { x: number; y: number; z: number };
+  surfaceOffsetMM?: number;
   scale: { x: number; z: number };
   rotation: number; // рад, вокруг локальной Z
   opacity: number; // 0..1
