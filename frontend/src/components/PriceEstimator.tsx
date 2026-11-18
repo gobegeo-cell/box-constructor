@@ -12,6 +12,8 @@ import { estimateCost } from "../lib/constructor/costing";
 
 const INSERT_MATERIALS = ["Поролон", "Изолон", "Картон", "Драпировка"] as const;
 type InsertMaterial = (typeof INSERT_MATERIALS)[number];
+const INSERT_COVERINGS = ["Бархат", "Дизайнерский картон", "Флок"] as const;
+type InsertCovering = (typeof INSERT_COVERINGS)[number];
 
 /* ===== helpers ===== */
 const fmtCur = (n: number, currency: string) =>
@@ -190,6 +192,7 @@ export default function PriceEstimator() {
   const [finMagnets, setFinMagnets] = useState(false);
   const [hasInsert, setHasInsert] = useState(false);
   const [insertMaterial, setInsertMaterial] = useState<InsertMaterial>("Поролон");
+  const [insertCovering, setInsertCovering] = useState<InsertCovering | "">("");
 
   // материалы
   const [baseBoard, setBaseBoard] = useState<"chip_1_5" | "chip_2_0">("chip_1_5");
@@ -371,6 +374,7 @@ function generatePDF() {
       innerMode, drawerSleeveInner, lidLong,
       finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
       insertMaterial: hasInsert ? insertMaterial : undefined,
+      insertCovering: hasInsert && insertCovering ? insertCovering : undefined,
       sideColors, logos,
       logosMeta: extractLogosMeta(logos, { W: Number(width) || 0, H: Number(height) || 0, D: Number(depth) || 0 }, String(boxType || "")),
     };
@@ -406,6 +410,7 @@ function generatePDF() {
             wrapLamination: metaCommon.wrapLamination,
             fullWrapFileName: metaCommon.fullWrapFileName,
             insertMaterial: metaCommon.insertMaterial,
+            insertCovering: metaCommon.insertCovering,
             promo: promoClean || undefined,
           });
           console.log("[TZ] manager: sent OK");
@@ -508,12 +513,21 @@ function generatePDF() {
         <label><input type="checkbox" checked={finMagnets} onChange={(e) => setFinMagnets(e.currentTarget.checked)} /> Магниты (пара)</label>
         <label><input type="checkbox" checked={hasInsert} onChange={(e) => setHasInsert(e.currentTarget.checked)} /> Ложемент</label>
         {hasInsert && (
-          <label>
-            Материал ложемента{" "}
-            <select value={insertMaterial} onChange={(e) => setInsertMaterial(e.currentTarget.value as InsertMaterial)}>
-              {INSERT_MATERIALS.map((material) => <option key={material}>{material}</option>)}
-            </select>
-          </label>
+          <div style={{ display: "grid", gap: 8, width: "100%" }}>
+            <label>
+              Материал ложемента{" "}
+              <select value={insertMaterial} onChange={(e) => setInsertMaterial(e.currentTarget.value as InsertMaterial)}>
+                {INSERT_MATERIALS.map((material) => <option key={material}>{material}</option>)}
+              </select>
+            </label>
+            <label>
+              Покрытие ложемента{" "}
+              <select value={insertCovering} onChange={(e) => setInsertCovering(e.currentTarget.value as InsertCovering | "")}>
+                <option value="">Без покрытия</option>
+                {INSERT_COVERINGS.map((covering) => <option key={covering}>{covering}</option>)}
+              </select>
+            </label>
+          </div>
         )}
       </div>
 
