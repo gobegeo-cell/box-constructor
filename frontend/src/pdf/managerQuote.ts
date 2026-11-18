@@ -1,3 +1,4 @@
+import { boxTypeLabel } from "../lib/boxTypes";
 import { drawManualOffer, drawExecutorSignature, type ManualOffer } from "./manualOffer";
 import { CLICHE_CM2_RATE } from "../lib/costing";
 import { tierGeometry, type TierSettings } from "../lib/tierGeometry";
@@ -47,23 +48,6 @@ function sideRu(k: string): string {
     case "left": return "Лево";
     case "right": return "Право";
     default: return k;
-  }
-}
-
-function mapBoxTypeRu(t: string) {
-  switch (t) {
-    case "casket": return "Шкатулка";
-    case "casketSlider": return "Шкатулка слайдер";
-    case "lidBottom": return "Крышка-дно";
-    case "hexBox": return "V крышка";
-    case "vCutHex": return "V-образная крышка";
-    case "angledHex": return "Угловая коробка";
-    case "tierCasket": return "Ярусная коробка";
-    case "drawer": return "Пенал";
-    case "hex": return "Футляр";
-    case "case":
-    case "futlyar": return "Футляр";
-    default: return t || "Коробка";
   }
 }
 
@@ -285,6 +269,7 @@ type Args = {
   fullWrapFileName?: string;
   print: "logosOnly" | "fullWrap";
   finishing?: Finishing;
+  insertMaterial?: string;
 
   // опционально (для таблиц/цветов):
   sideColors?: string[];   // [ ... , lid=4, bottom=5 ]
@@ -419,7 +404,7 @@ export default async function generateManagerQuote(args: Args) {
   const plateArea = quoteLogos.reduce((sum, r) => sum + Math.max(0, r.wMM) * Math.max(0, r.hMM) / 100 * stampingCount, 0);
   const plateCost = quoteLogos.reduce((sum, r) => sum + Math.round(Math.max(0, r.wMM) * Math.max(0, r.hMM) / 100 * CLICHE_CM2_RATE * stampingCount), 0);
   const headerLines: string[] = [];
-  headerLines.push(`Тип: ${mapBoxTypeRu(args.boxType)}`);
+  headerLines.push(`Тип: ${boxTypeLabel(args.boxType)}`);
   const tier = args.boxType === "tierCasket" ? tierGeometry(args.tiers) : null;
   headerLines.push(`Габариты (мм): W ${tier?.width ?? args.widthMM} × H ${tier?.height ?? args.heightMM} × D ${tier?.depth ?? args.depthMM}`);
   if (tier) {
@@ -451,6 +436,7 @@ export default async function generateManagerQuote(args: Args) {
   }
   if (args.finishing?.foilStamp && args.foilColor?.trim()) headerLines.push(`Цвет фольги: ${args.foilColor.trim().slice(0, 120)}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
+  if (args.insertMaterial) headerLines.push(`Ложемент: ${args.insertMaterial}`);
   const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || (args.boxType === "vCutHex" || args.boxType === "angledHex")) || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap" || args.boxType === "tierCasket")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
