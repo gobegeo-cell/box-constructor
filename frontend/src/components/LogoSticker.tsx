@@ -177,6 +177,7 @@ export default function LogoSticker({ anchors }: { anchors?: Anchors }) {
     type: "image" | "text";
     content: string | null;
     position: { x: number; y: number; z: number };
+    surfaceOffsetMM?: number;
     scale: { x: number; z: number };
     rotation: number; // РАДИАНЫ (оставляем как есть!)
     opacity: number;
@@ -209,11 +210,11 @@ export default function LogoSticker({ anchors }: { anchors?: Anchors }) {
         const ratio = (Number(data.scale?.x) + Number(data.scale?.z)) / 2 || 1;
         const op = typeof data.opacity === "number" ? Number(data.opacity) : 1;
 
-        // смещение в плоскости (мм): top/bottom — (x,z); остальные — (x,y)
+        const isHorizontal = side === "top" || side === "bottom";
         const offset = new THREE.Vector3(
           mm(data.position?.x || 0),
-          side === "top" || side === "bottom" ? 0 : mm(data.position?.y || 0),
-          side === "top" || side === "bottom" ? mm(data.position?.z || 0) : 0
+          mm(isHorizontal ? (side === "top" ? -1 : 1) * (data.position?.z ?? 0) : (data.position?.y ?? 0)),
+          mm(isHorizontal ? (data.surfaceOffsetMM ?? 0) : 0)
         );
 
         // итоговый поворот: базовая поправка Z + пользовательский (в радианах)
