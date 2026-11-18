@@ -1,3 +1,4 @@
+import { boxTypeLabel } from "../lib/boxTypes";
 import { createPortal } from "react-dom";
 import { isGeoCode, validateOffer, offerAmounts, type ManualOffer } from "../pdf/manualOffer";
 // src/components/PriceEstimator.tsx — мгновенное скачивание PDF на ПК + фоновая отправка менеджеру
@@ -8,6 +9,9 @@ import generateManagerQuote from "../pdf/managerQuote";
 import { useBoxStore } from "../store/useBoxStore";
 import { useUiStore } from "../store/useUiStore";
 import { estimateCost } from "../lib/constructor/costing";
+
+const INSERT_MATERIALS = ["Поролон", "Изолон", "Картон", "Драпировка"] as const;
+type InsertMaterial = (typeof INSERT_MATERIALS)[number];
 
 /* ===== helpers ===== */
 const fmtCur = (n: number, currency: string) =>
@@ -184,6 +188,8 @@ export default function PriceEstimator() {
   const [finFoil, setFinFoil] = useState(false);
   const [finUV, setFinUV] = useState(false);
   const [finMagnets, setFinMagnets] = useState(false);
+  const [hasInsert, setHasInsert] = useState(false);
+  const [insertMaterial, setInsertMaterial] = useState<InsertMaterial>("Поролон");
 
   // материалы
   const [baseBoard, setBaseBoard] = useState<"chip_1_5" | "chip_2_0">("chip_1_5");
@@ -304,7 +310,7 @@ export default function PriceEstimator() {
   const lamSheets   = Number(sheets.lamination || 0);
 
   function handleShare() {
-    const text = `Добрый день! Хочу заказать упаковку.\nТип коробки: ${boxType}\nРазмер: ${width}×${height}×${depth} мм\nТираж: ${quantity} шт.\nПромокод: ${promo || "—"}`;
+    const text = `Добрый день! Хочу заказать упаковку.\nТип коробки: ${boxTypeLabel(boxType)}\nРазмер: ${width}×${height}×${depth} мм\nТираж: ${quantity} шт.\nПромокод: ${promo || "—"}`;
     const shareData = { title: "Заказ упаковки — Пчёлкин", text, url: window.location.href };
     if ((navigator as any)?.share) (navigator as any).share(shareData).catch(() => {});
     else window.open(`https://wa.me/?text=${encodeURIComponent(text + "\n" + window.location.href)}`, "_blank");
@@ -364,6 +370,7 @@ function generatePDF() {
       fullWrapFileName: print === "fullWrap" ? fullWrapArtwork?.name : undefined,
       innerMode, drawerSleeveInner, lidLong,
       finishing: { blindEmboss: finBlind, foilStamp: finFoil, spotUV: finUV, magnetsPair: finMagnets },
+      insertMaterial: hasInsert ? insertMaterial : undefined,
       sideColors, logos,
       logosMeta: extractLogosMeta(logos, { W: Number(width) || 0, H: Number(height) || 0, D: Number(depth) || 0 }, String(boxType || "")),
     };
@@ -398,6 +405,7 @@ function generatePDF() {
             lamination: metaCommon.lamination,
             wrapLamination: metaCommon.wrapLamination,
             fullWrapFileName: metaCommon.fullWrapFileName,
+            insertMaterial: metaCommon.insertMaterial,
             promo: promoClean || undefined,
           });
           console.log("[TZ] manager: sent OK");
@@ -498,6 +506,15 @@ function generatePDF() {
         <label><input type="checkbox" checked={finFoil} onChange={(e) => setFinFoil(e.currentTarget.checked)} /> Тиснение фольгой (клише)</label>
         <label><input type="checkbox" checked={finUV} onChange={(e) => setFinUV(e.currentTarget.checked)} /> Выборочный УФ</label>
         <label><input type="checkbox" checked={finMagnets} onChange={(e) => setFinMagnets(e.currentTarget.checked)} /> Магниты (пара)</label>
+        <label><input type="checkbox" checked={hasInsert} onChange={(e) => setHasInsert(e.currentTarget.checked)} /> Ложемент</label>
+        {hasInsert && (
+          <label>
+            Материал ложемента{" "}
+            <select value={insertMaterial} onChange={(e) => setInsertMaterial(e.currentTarget.value as InsertMaterial)}>
+              {INSERT_MATERIALS.map((material) => <option key={material}>{material}</option>)}
+            </select>
+          </label>
+        )}
       </div>
 
       {/* Промокод и доступ */}

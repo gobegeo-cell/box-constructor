@@ -2,27 +2,7 @@
 import React from "react";
 import { useBoxStore } from "../store/useBoxStore";
 
-type Opt = { id: string; label: string };
-
-const STANDARD: Opt[] = [
-  { id: "lidBottom", label: "Крышка-дно" },
-  { id: "casket",    label: "Шкатулка" },
-  { id: "drawer",    label: "Пенал" },
-  { id: "hex",       label: "Футляр" },
-];
-
-const NON_STANDARD: Opt[] = [
-  { id: "bookBox",            label: "Коробка-книга" },
-  { id: "casketSlider",       label: "Шкатулка слайдер" },
-  { id: "casketCounterFlap",  label: "Шкат. вст. клапан" },
-  { id: "lidBottomLongFlap",  label: "Крышка удл. клапан" },
-
-  // 🆕 Новые типы
-  { id: "hexBox",     label: "V крышка " },
-  { id: "vCutHex",    label: "V-образная крышка" },
-  { id: "tierCasket", label: "ярусная коробка" },
-  { id: "angledHex",  label: "Угловая коробка" },
-];
+import { STANDARD, NON_STANDARD, type Opt } from "../lib/boxTypes";
 
 export default function TypeSelector() {
   const boxType = useBoxStore((s) => s.boxType);
@@ -33,11 +13,11 @@ export default function TypeSelector() {
       <div style={titleStyle}>{title}</div>
       <div style={grid}>
         {items.map((o) => {
-          const active = boxType === (o.id as any);
+          const active = boxType === (o.id);
           return (
             <button
               key={o.id}
-              onClick={() => setBoxType(o.id as any)}
+              onClick={() => setBoxType(o.id)}
               aria-pressed={active}
               style={{ ...btn, ...(active ? btnActive : {}) }}
               title={o.label}
