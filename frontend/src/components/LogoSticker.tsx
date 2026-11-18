@@ -1,7 +1,7 @@
 // src/components/LogoSticker.tsx
 import * as THREE from "three";
 import { useMemo } from "react";
-import { useLoader, createPortal } from "@react-three/fiber";
+import { useLoader, useThree, createPortal } from "@react-three/fiber";
 import { useBoxStore } from "../store/useBoxStore";
 
 type BoxSide = "front" | "back" | "left" | "right" | "top" | "bottom";
@@ -92,6 +92,11 @@ function ImagePlane({ url, A, B, ratio, opacity }:{
   url: string; A: number; B: number; ratio: number; opacity: number;
 }) {
   const tex = useLoader(THREE.TextureLoader, url);
+  const anisotropy = useThree((state) => state.gl.capabilities.getMaxAnisotropy());
+  if (anisotropy > 0 && tex.anisotropy !== anisotropy) {
+    tex.anisotropy = anisotropy;
+    tex.needsUpdate = true;
+  }
   const iw = tex.image && (tex.image as any).width ? (tex.image as any).width : 1;
   const ih = tex.image && (tex.image as any).height ? (tex.image as any).height : 1;
   const aspect = iw / ih;
@@ -113,6 +118,7 @@ function ImagePlane({ url, A, B, ratio, opacity }:{
         map={tex}
         transparent
         opacity={THREE.MathUtils.clamp(op, 0, 1)}
+        toneMapped={false}
         depthWrite={false}
         polygonOffset
         polygonOffsetFactor={-1}

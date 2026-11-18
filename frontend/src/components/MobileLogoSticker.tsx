@@ -108,8 +108,11 @@ export default function MobileLogoSticker({ side }: { side?: BoxSide }) {
 
           const t = new THREE.CanvasTexture(cv);
           t.flipY = false;
-          t.generateMipmaps = false;
-          t.minFilter = THREE.LinearFilter;
+          const supportsMipmaps = gl.capabilities.isWebGL2 ||
+            (THREE.MathUtils.isPowerOfTwo(dw) && THREE.MathUtils.isPowerOfTwo(dh));
+          t.generateMipmaps = supportsMipmaps;
+          t.minFilter = supportsMipmaps ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+          if (supportsMipmaps) t.anisotropy = Math.max(1, gl.capabilities.getMaxAnisotropy());
           t.magFilter = THREE.LinearFilter;
           t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
           // @ts-ignore
