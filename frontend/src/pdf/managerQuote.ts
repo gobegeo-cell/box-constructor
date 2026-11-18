@@ -270,6 +270,7 @@ type Args = {
   print: "logosOnly" | "fullWrap";
   finishing?: Finishing;
   insertMaterial?: string;
+  insertCovering?: string;
 
   // опционально (для таблиц/цветов):
   sideColors?: string[];   // [ ... , lid=4, bottom=5 ]
@@ -436,7 +437,10 @@ export default async function generateManagerQuote(args: Args) {
   }
   if (args.finishing?.foilStamp && args.foilColor?.trim()) headerLines.push(`Цвет фольги: ${args.foilColor.trim().slice(0, 120)}`);
   if (args.finishing?.magnetsPair) headerLines.push("Магниты: пара");
-  if (args.insertMaterial) headerLines.push(`Ложемент: ${args.insertMaterial}`);
+  if (args.insertMaterial) {
+    headerLines.push(`Ложемент: ${args.insertMaterial}`);
+    if (args.insertCovering) headerLines.push(`Покрытие ложемента: ${args.insertCovering}`);
+  }
   const innerWrap = ((args.boxType === "lidBottom" || args.boxType === "hexBox" || (args.boxType === "vCutHex" || args.boxType === "angledHex")) || (args.boxType === "casket" || args.boxType === "casketSlider" || args.boxType === "casketCounterFlap" || args.boxType === "tierCasket")) ? args.wrapPaper : "none";
   if (args.boxType === "hex") {
     headerLines.push(`Кашировка внутри футляра: ${mapWrap(args.wrapPaper)}`);
