@@ -1,7 +1,7 @@
 // src/components/BoxWithControls.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Environment } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { useBoxStore } from "../store/useBoxStore";
 import BoxModel from "./BoxModel";
 import TypeSelector from "./TypeSelector";
@@ -165,9 +165,8 @@ export default function BoxWithControls() {
             shadows
             camera={{ position: [0.4, 0.45, 0.9], fov: 40 }}
           >
-         <ambientLight intensity={0.6} />
-        <directionalLight position={[2, 3, 2]} intensity={0.8} castShadow />
-      <Environment files="/street_lamp_4k.exr" />
+            <ambientLight intensity={2.8} />
+            <directionalLight position={[2, 3, 2]} intensity={0.35} castShadow />
       <OrbitControls
         makeDefault
         enablePan={false}
@@ -304,9 +303,8 @@ export default function BoxWithControls() {
             shadows
             camera={{ position: [0.4, 0.35, 0.6], fov: 40 }}
           >
-           <ambientLight intensity={0.6} />
-            <directionalLight position={[2, 3, 2]} intensity={0.8} castShadow />
-           <Environment files="/street_lamp_4k.exr" />
+            <ambientLight intensity={2.8} />
+            <directionalLight position={[2, 3, 2]} intensity={0.35} castShadow />
            <OrbitControls
            makeDefault
           enablePan={false}
