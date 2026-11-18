@@ -287,7 +287,7 @@ export default function LogoEditor() {
   </div>
 
   <div style={{ display: "grid", gridTemplateColumns: "64px 1fr 52px", alignItems: "center", columnGap: 6, minWidth: 260 }}>
-    <label style={label}>{isTopOrBottom ? "Y (отступ)" : "Z"}</label>
+    <label style={label}>{isTopOrBottom ? "Y (отступ)" : "Y"}</label>
     <div style={inputWrap}>
       <input value={yInput} onChange={(e)=>setYInput(e.currentTarget.value)} style={input}/>
       <span style={suffix}>мм</span>
